@@ -13,4 +13,13 @@ describe('SWS Fleet shell', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Watch 2015 Double Bucket' }))
     expect(screen.getByRole('button', { name: 'Unwatch 2015 Double Bucket' })).toBeInTheDocument()
   })
+  it('opens a vehicle detail view and admin form', () => {
+    render(<App />)
+    fireEvent.click(screen.getAllByRole('button', { name: 'Vehicles' })[0])
+    fireEvent.click(screen.getByRole('button', { name: 'Open 2015 Double Bucket' }))
+    expect(screen.getByRole('heading', { name: '2015 Double Bucket' })).toBeInTheDocument()
+    expect(screen.getAllByText('Vehicle details').length).toBeGreaterThan(0)
+    fireEvent.click(screen.getByRole('button', { name: 'Edit vehicle' }))
+    expect(screen.getByLabelText('License Plate')).toHaveValue('CJ43300')
+  })
 })
