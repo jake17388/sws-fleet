@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { BrowserRouter, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 
 const nav = ['Dashboard', 'Vehicles', 'Service', 'Inspections', 'Issues', 'Reports', 'Fleet map']
 const stats = [
@@ -12,11 +13,18 @@ const vehicles = [
 ]
 
 export function App() {
-  const [active, setActive] = useState('Dashboard')
+  const basename = window.location.pathname.startsWith('/sws-fleet') ? '/sws-fleet' : undefined
+  return <BrowserRouter basename={basename}><AppLayout /></BrowserRouter>
+}
+
+function AppLayout() {
+  const location = useLocation()
+  const navigate = useNavigate()
+  const active = nav.find(item => `/${item.toLowerCase().replace(' ', '-')}` === location.pathname) ?? (location.pathname === '/' ? 'Dashboard' : 'Dashboard')
   return <div className="app-shell">
-    <aside className="sidebar"><div className="brand"><span className="brand-mark">S</span><span>SWS Fleet</span></div><nav aria-label="Primary navigation">{nav.map(item => <button className={active === item ? 'active' : ''} onClick={() => setActive(item)} key={item}>{item}</button>)}</nav><div className="user-chip"><span className="avatar">JM</span><span><strong>Jordan Miller</strong><small>Administrator</small></span></div></aside>
-    <main><header><button className="menu" aria-label="Open menu" onClick={() => setActive(active === 'Dashboard' ? 'Vehicles' : 'Dashboard')}>☰</button><div><p className="eyebrow">Wednesday, September 2, 2026</p><h1>{active}</h1></div><button className="help" aria-label="Help">?</button></header>
-      {active === 'Dashboard' ? <Dashboard /> : active === 'Vehicles' ? <VehiclesPage /> : <PlaceholderPage title={active} />}
+    <aside className="sidebar"><div className="brand"><span className="brand-mark">S</span><span>SWS Fleet</span></div><nav aria-label="Primary navigation">{nav.map(item => <NavLink className={({ isActive }) => isActive ? 'active' : ''} to={`/${item.toLowerCase().replace(' ', '-')}`} key={item}>{item}</NavLink>)}</nav><div className="user-chip"><span className="avatar">JM</span><span><strong>Jordan Miller</strong><small>Administrator</small></span></div></aside>
+    <main><header><button className="menu" aria-label="Open menu" onClick={() => navigate('/vehicles')}>☰</button><div><p className="eyebrow">Wednesday, September 2, 2026</p><h1>{active}</h1></div><button className="help" aria-label="Help">?</button></header>
+      <Routes><Route path="/" element={<Dashboard />} /><Route path="/dashboard" element={<Dashboard />} /><Route path="/vehicles" element={<VehiclesPage />} />{nav.slice(2).map(item => <Route key={item} path={`/${item.toLowerCase().replace(' ', '-')}`} element={<PlaceholderPage title={item} />} />)}</Routes>
     </main>
   </div>
 }
