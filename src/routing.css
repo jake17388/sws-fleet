@@ -1,18 +1,18 @@
 nav a {
-  display: block;
+  display: block !important;
   border: 0;
   background: none;
-  color: #a7bdca;
+  color: #a7bdca !important;
   text-align: left;
   padding: 12px;
   border-radius: 8px;
   font-size: 14px;
   cursor: pointer;
-  text-decoration: none;
+  text-decoration: none !important;
 }
 
 nav a.active,
 nav a:hover {
-  background: #173650;
-  color: white;
+  background: #173650 !important;
+  color: white !important;
 }
