@@ -1,0 +1,18 @@
+nav a {
+  display: block;
+  border: 0;
+  background: none;
+  color: #a7bdca;
+  text-align: left;
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+nav a.active,
+nav a:hover {
+  background: #173650;
+  color: white;
+}
