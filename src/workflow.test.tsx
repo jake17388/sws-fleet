@@ -1,71 +1,92 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-vi.mock('./supabase', () => ({ supabase: null }))
-import { App } from './App'
-const fill = (label: string, value: string) => fireEvent.change(screen.getByLabelText(label), { target: { value } })
-beforeEach(() => { localStorage.clear(); window.history.replaceState({}, '', '/vehicles') })
-afterEach(cleanup)
-it('creates, reloads, edits a non-first vehicle, schedules and completes service with persistent history', async () => {
-  let ui = render(<App/>)
-  await screen.findByRole('button', { name: 'Open 2016 Flatbed' })
-  fireEvent.click(screen.getByRole('button', { name: 'Open 2016 Flatbed' }))
-  fireEvent.click(screen.getByRole('button', { name: 'Edit vehicle' }))
-  fill('Name', '2016 Flatbed updated')
-  fireEvent.click(screen.getByRole('button', { name: 'Save vehicle' }))
-  await screen.findByRole('heading', { name: '2016 Flatbed updated' })
-  fireEvent.click(screen.getByRole('button', { name: '← Back to vehicles' }))
-  fireEvent.click(screen.getByRole('button', { name: '＋ Add vehicle' }))
-  fill('Name', 'QA Truck'); fill('Make', 'Ford'); fill('Model', 'F-550')
-  fireEvent.click(screen.getByRole('button', { name: 'Save vehicle' }))
-  await screen.findByRole('heading', { name: 'QA Truck' })
-  ui.unmount(); ui = render(<App/>)
-  expect(await screen.findByRole('heading', { name: 'QA Truck' })).toBeInTheDocument()
-  fireEvent.click(screen.getByRole('link', { name: 'Open service records' }))
-  await waitFor(() => expect(screen.getByRole('button', { name: '＋ Schedule service' })).toBeEnabled())
-  fireEvent.click(screen.getByRole('button', { name: '＋ Schedule service' }))
-  fill('Service title', 'Oil change'); fill('Due date', '2026-09-01')
-  fireEvent.click(screen.getByRole('button', { name: 'Save service' }))
-  await screen.findByText('Service schedule saved.')
-  expect(screen.getByText('Overdue')).toBeInTheDocument()
-  fireEvent.click(screen.getByRole('button', { name: 'Edit schedule' }))
-  fill('Service title', 'Oil and filter change')
-  fireEvent.click(screen.getByRole('button', { name: 'Save service' }))
-  await screen.findByRole('heading', { name: 'Oil and filter change' })
-  fireEvent.click(screen.getByRole('button', { name: 'Complete service' }))
-  fill('Cost (USD)', '125.50'); fill('Notes', 'Oil and filter replaced'); fill('Service provider', 'Fleet shop')
-  fireEvent.click(screen.getByRole('button', { name: 'Save completion' }))
-  await screen.findByText('Service completed and saved to history.')
-  ui.unmount(); render(<App/>)
-  await waitFor(() => expect(screen.getByLabelText('Service view')).toBeInTheDocument())
-  fill('Service view', 'History')
-  expect(await screen.findByText('Oil and filter replaced')).toBeInTheDocument()
-  expect(screen.getByText(/\$125.50/)).toBeInTheDocument()
-  expect(screen.queryByRole('button', { name: 'Complete service' })).not.toBeInTheDocument()
-})
-it('keeps a failed vehicle save editable and supports retry', async () => {
-  render(<App/>); fireEvent.click(await screen.findByRole('button', { name: 'Open 2016 Flatbed' }))
-  fireEvent.click(screen.getByRole('button', { name: 'Edit vehicle' }))
-  fill('Name', 'Retry truck')
-  const failure = vi.spyOn(Storage.prototype, 'setItem').mockImplementationOnce(() => { throw new Error('Storage full') })
-  fireEvent.click(screen.getByRole('button', { name: 'Save vehicle' }))
-  expect(await screen.findByText('Storage full')).toBeInTheDocument()
-  expect(screen.getByLabelText('Name')).toHaveValue('Retry truck')
-  failure.mockRestore()
-  fireEvent.click(screen.getByRole('button', { name: 'Save vehicle' }))
-  await screen.findByRole('heading', { name: 'Retry truck' })
-})
-it('keeps a failed service schedule available for retry without duplicates', async () => {
-  window.history.replaceState({}, '', '/service')
-  render(<App/>)
-  await waitFor(() => expect(screen.getByRole('button', { name: '＋ Schedule service' })).toBeEnabled())
-  fireEvent.click(screen.getByRole('button', { name: '＋ Schedule service' }))
-  fill('Service title', 'Brake check'); fill('Due meter (mi)', '190000')
-  const failure = vi.spyOn(Storage.prototype, 'setItem').mockImplementationOnce(() => { throw new Error('Service storage full') })
-  fireEvent.click(screen.getByRole('button', { name: 'Save service' }))
-  expect(await screen.findByText('Service storage full')).toBeInTheDocument()
-  expect(screen.getByLabelText('Service title')).toHaveValue('Brake check')
-  failure.mockRestore()
-  fireEvent.click(screen.getByRole('button', { name: 'Save service' }))
-  await screen.findByText('Service schedule saved.')
-  expect(screen.getAllByRole('heading', { name: 'Brake check' })).toHaveLength(1)
-})
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+vi.mock("./supabase", () => ({ supabase: null }));
+import { App } from "./App";
+const fill = (label: string, value: string) =>
+  fireEvent.change(screen.getByLabelText(label), { target: { value } });
+beforeEach(() => {
+  localStorage.clear();
+  window.history.replaceState({}, "", "/vehicles");
+});
+afterEach(cleanup);
+it("creates, reloads, edits a non-first vehicle, schedules and completes service with persistent history", async () => {
+  let ui = render(<App />);
+  await screen.findByRole("button", { name: "Open 2016 Flatbed" });
+  fireEvent.click(screen.getByRole("button", { name: "Open 2016 Flatbed" }));
+  fireEvent.click(screen.getByRole("button", { name: "Edit vehicle" }));
+  fill("Name", "2016 Flatbed updated");
+  fireEvent.click(screen.getByRole("button", { name: "Save vehicle" }));
+  await screen.findByRole("heading", { name: "2016 Flatbed updated" });
+  fireEvent.click(screen.getByRole("button", { name: "← Back to vehicles" }));
+  fireEvent.click(screen.getByRole("button", { name: "＋ Add vehicle" }));
+  fill("Name", "QA Truck");
+  fill("Make", "Ford");
+  fill("Model", "F-550");
+  fireEvent.click(screen.getByRole("button", { name: "Save vehicle" }));
+  await screen.findByRole("heading", { name: "QA Truck" });
+  ui.unmount();
+  ui = render(<App />);
+  expect(await screen.findByRole("heading", { name: "QA Truck" })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("link", { name: "Open service records" }));
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "＋ Schedule service" })).toBeEnabled(),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "＋ Schedule service" }));
+  fill("Service title", "Oil change");
+  fill("Due date", "2026-09-01");
+  fireEvent.click(screen.getByRole("button", { name: "Save service" }));
+  await screen.findByText("Service schedule saved.");
+  expect(screen.getByText("Overdue")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Edit schedule" }));
+  fill("Service title", "Oil and filter change");
+  fireEvent.click(screen.getByRole("button", { name: "Save service" }));
+  await screen.findByRole("heading", { name: "Oil and filter change" });
+  fireEvent.click(screen.getByRole("button", { name: "Complete service" }));
+  fill("Cost (USD)", "125.50");
+  fill("Notes", "Oil and filter replaced");
+  fill("Service provider", "Fleet shop");
+  fireEvent.click(screen.getByRole("button", { name: "Save completion" }));
+  await screen.findByText("Service completed and saved to history.");
+  ui.unmount();
+  render(<App />);
+  await waitFor(() => expect(screen.getByLabelText("Service view")).toBeInTheDocument());
+  fill("Service view", "History");
+  expect(await screen.findByText("Oil and filter replaced")).toBeInTheDocument();
+  expect(screen.getByText(/\$125.50/)).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Complete service" })).not.toBeInTheDocument();
+});
+it("keeps a failed vehicle save editable and supports retry", async () => {
+  render(<App />);
+  fireEvent.click(await screen.findByRole("button", { name: "Open 2016 Flatbed" }));
+  fireEvent.click(screen.getByRole("button", { name: "Edit vehicle" }));
+  fill("Name", "Retry truck");
+  const failure = vi.spyOn(Storage.prototype, "setItem").mockImplementationOnce(() => {
+    throw new Error("Storage full");
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Save vehicle" }));
+  expect(await screen.findByText("Storage full")).toBeInTheDocument();
+  expect(screen.getByLabelText("Name")).toHaveValue("Retry truck");
+  failure.mockRestore();
+  fireEvent.click(screen.getByRole("button", { name: "Save vehicle" }));
+  await screen.findByRole("heading", { name: "Retry truck" });
+});
+it("keeps a failed service schedule available for retry without duplicates", async () => {
+  window.history.replaceState({}, "", "/service");
+  render(<App />);
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "＋ Schedule service" })).toBeEnabled(),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "＋ Schedule service" }));
+  fill("Service title", "Brake check");
+  fill("Due meter (mi)", "190000");
+  const failure = vi.spyOn(Storage.prototype, "setItem").mockImplementationOnce(() => {
+    throw new Error("Service storage full");
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Save service" }));
+  expect(await screen.findByText("Service storage full")).toBeInTheDocument();
+  expect(screen.getByLabelText("Service title")).toHaveValue("Brake check");
+  failure.mockRestore();
+  fireEvent.click(screen.getByRole("button", { name: "Save service" }));
+  await screen.findByText("Service schedule saved.");
+  expect(screen.getAllByRole("heading", { name: "Brake check" })).toHaveLength(1);
+});

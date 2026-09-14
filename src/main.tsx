@@ -1,8 +1,12 @@
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import { App } from './App'
-import './styles.css'
-import './routing.css'
+import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+import { App } from "./App";
+import "./styles.css";
+import "./routing.css";
 
-createRoot(document.getElementById('root')!).render(<StrictMode><App /></StrictMode>)
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sws-fleet/sw.js')
+createRoot(document.getElementById("root")!).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+);
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sws-fleet/sw.js");

@@ -1,58 +1,943 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
-import { fetchVehicles } from './persistence'
-import type { Vehicle } from './vehicleModel'
+import { useEffect, useMemo, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
+import { fetchVehicles } from "./persistence";
+import type { Vehicle } from "./vehicleModel";
 import {
-  createInspectionIssue, inspectionStatus, isInspectionOverdue, loadInspectionIssues, loadInspections, loadInspectionTemplates,
-  requiredInspectionItemsMissing, saveInspection, saveInspectionIssue, saveInspectionTemplate, uploadInspectionPhoto,
-  type Inspection, type InspectionIssue, type InspectionResponse, type InspectionResponseType, type InspectionTemplate,
-} from './inspectionModel'
+  createInspectionIssue,
+  inspectionStatus,
+  isInspectionOverdue,
+  loadInspectionIssues,
+  loadInspections,
+  loadInspectionTemplates,
+  requiredInspectionItemsMissing,
+  saveInspection,
+  saveInspectionIssue,
+  saveInspectionTemplate,
+  uploadInspectionPhoto,
+  type Inspection,
+  type InspectionIssue,
+  type InspectionResponse,
+  type InspectionResponseType,
+  type InspectionTemplate,
+} from "./inspectionModel";
 
-const responseLabels: Record<InspectionResponseType, string> = { pass_fail: 'Pass / fail', pass_fail_na: 'Pass / fail / N/A', text: 'Text', number: 'Number', meter: 'Odometer / hours', photo: 'Photo' }
-const timestamp = () => new Date().toISOString()
+const responseLabels: Record<InspectionResponseType, string> = {
+  pass_fail: "Pass / fail",
+  pass_fail_na: "Pass / fail / N/A",
+  text: "Text",
+  number: "Number",
+  meter: "Odometer / hours",
+  photo: "Photo",
+};
+const timestamp = () => new Date().toISOString();
 
 export function InspectionsPage() {
-  const [params, setParams] = useSearchParams(); const vehicleFilter = params.get('vehicle') ?? ''
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]); const [templates, setTemplates] = useState<InspectionTemplate[]>([]); const [inspections, setInspections] = useState<Inspection[]>([]); const [issues, setIssues] = useState<InspectionIssue[]>([])
-  const [loading, setLoading] = useState(true); const [error, setError] = useState(''); const [notice, setNotice] = useState(''); const [view, setView] = useState<'Open' | 'History' | 'Templates' | 'Linked issues'>('Open'); const [active, setActive] = useState<Inspection | null>(null); const [templateEditor, setTemplateEditor] = useState<InspectionTemplate | null>(null); const [retry, setRetry] = useState(0)
-  useEffect(() => { let live = true; setLoading(true); setError(''); Promise.all([fetchVehicles(), loadInspectionTemplates(), loadInspections(), loadInspectionIssues()]).then(([fleet, templateList, records, linked]) => { if (live) { setVehicles(fleet); setTemplates(templateList); setInspections(records); setIssues(linked) } }).catch(reason => { if (live) setError(reason instanceof Error ? reason.message : 'Could not load inspections.') }).finally(() => { if (live) setLoading(false) }); return () => { live = false } }, [retry])
-  const available = useMemo(() => templates.filter(template => !template.archivedAt && vehicles.some(vehicle => (!vehicleFilter || vehicle.id === vehicleFilter) && (template.vehicleIds.includes(vehicle.id) || template.vehicleTypes.includes(vehicle.type)))), [templates, vehicles, vehicleFilter])
-  const start = async () => { const template = available[0]; const vehicle = template && (vehicles.find(item => item.id === vehicleFilter && (template.vehicleIds.includes(item.id) || template.vehicleTypes.includes(item.type))) ?? vehicles.find(item => template.vehicleIds.includes(item.id) || template.vehicleTypes.includes(item.type))); if (!template || !vehicle) return; setNotice(''); setError(''); try { const draft = await saveInspection({ id: '', templateId: template.id, templateName: template.name, vehicleId: vehicle.id, status: 'Draft', notes: '', startedAt: timestamp(), submittedAt: null, updatedAt: timestamp(), responses: [] }); setInspections(current => [draft, ...current]); setActive(draft) } catch (reason) { setError(reason instanceof Error ? reason.message : 'Could not start inspection.') } }
-  if (loading) return <section className="empty-state" role="status"><span className="loader" /><h2>Loading inspections</h2><p>Retrieving templates, drafts, and inspection history…</p></section>
-  if (error) return <section className="empty-state"><div className="state-icon">!</div><h2>We couldn’t load inspections</h2><p role="alert">{error}</p><button className="secondary" onClick={() => setRetry(value => value + 1)}>Try again</button></section>
-  if (templateEditor) return <TemplateEditor template={templateEditor} vehicles={vehicles} onCancel={() => setTemplateEditor(null)} onSave={async template => { const saved = await saveInspectionTemplate(template); setTemplates(current => template.id ? current.map(item => item.id === template.id ? saved : item) : [...current, saved]); setTemplateEditor(null); setNotice('Template saved.'); setView('Templates') }} />
-  if (active) { const template = templates.find(item => item.id === active.templateId); if (!template) return null; return <InspectionRunner inspection={active} template={template} vehicle={vehicles.find(item => item.id === active.vehicleId)} issues={issues} onChange={setActive} onClose={() => setActive(null)} onIssue={async item => { const issue = await saveInspectionIssue(createInspectionIssue(active, item)); setIssues(current => [issue, ...current]); setNotice('Linked issue created.') }} notice={notice} onSave={async submit => { const missing = submit ? requiredInspectionItemsMissing(template, active) : []; if (missing.length) throw new Error(`${missing.length} required item${missing.length === 1 ? ' is' : 's are'} incomplete: ${missing.slice(0, 2).join(', ')}.`); const result = inspectionStatus(template, active); const saved = await saveInspection({ ...active, status: submit ? result : 'Draft', submittedAt: submit ? timestamp() : null }); setInspections(current => current.map(item => item.id === saved.id ? saved : item)); if (submit) { setActive(null); setView('History'); setNotice(`Inspection submitted: ${result}.`) } else { setActive(saved); setNotice('Draft saved.') } }} /> }
-  const shown = inspections.filter(item => (!vehicleFilter || item.vehicleId === vehicleFilter) && (view === 'Open' ? item.status === 'Draft' : view === 'History' ? item.status !== 'Draft' : true))
-  const newTemplate = (): InspectionTemplate => ({ id: '', name: '', description: '', vehicleTypes: ['Truck'], vehicleIds: [], cadenceDays: 1, archivedAt: null, createdAt: '', updatedAt: '', items: [{ id: crypto.randomUUID(), label: '', responseType: 'pass_fail_na', required: true, instructions: '', position: 0 }] })
-  return <div className="content inspections-content"><section className="welcome"><div><p className="eyebrow">Safety & compliance</p><h2>Inspections</h2><p>Conduct checks, resolve failures, and keep every vehicle ready.</p></div><button className="primary" disabled={!available.length} onClick={start}>＋ Start inspection</button></section>{notice && <p className="success" role="status">{notice}</p>}
-    <nav className="inspection-tabs" aria-label="Inspection views">{(['Open', 'History', 'Templates', 'Linked issues'] as const).map(item => <button key={item} aria-current={view === item ? 'page' : undefined} onClick={() => { setView(item); setNotice('') }}>{item}</button>)}</nav>
-    {view === 'Templates' ? <section className="panel"><div className="panel-heading"><div><h3>Inspection templates</h3><p className="muted">Assign reusable checklists by vehicle type or specific vehicle.</p></div><button className="secondary" onClick={() => setTemplateEditor(newTemplate())}>＋ New template</button></div><div className="template-grid">{templates.map(template => <article className={`template-card${template.archivedAt ? ' archived' : ''}`} key={template.id}><div><span className="tag">{template.items.length} items</span>{template.archivedAt && <span className="tag amber">Archived</span>}<h3>{template.name}</h3><p>{template.description}</p><small>{template.vehicleTypes.join(', ') || `${template.vehicleIds.length} selected vehicle(s)`} · {template.cadenceDays ? `Every ${template.cadenceDays} day(s)` : 'No recurring schedule'}</small></div><div className="card-actions"><button className="text-button" aria-label={`Edit ${template.name}`} onClick={() => setTemplateEditor(template)}>Edit</button><button className="text-button" aria-label={`Duplicate ${template.name}`} onClick={() => setTemplateEditor({ ...template, id: '', name: `${template.name} copy`, createdAt: '', updatedAt: '', items: template.items.map(item => ({ ...item, id: crypto.randomUUID() })) })}>Duplicate</button><button className="text-button" onClick={async () => { const saved = await saveInspectionTemplate({ ...template, archivedAt: template.archivedAt ? null : timestamp() }); setTemplates(current => current.map(item => item.id === saved.id ? saved : item)) }}>{template.archivedAt ? 'Restore' : 'Archive'}</button></div></article>)}</div></section> : view === 'Linked issues' ? <section className="panel"><div className="panel-heading"><h3>Inspection-linked issues</h3><span className="count-badge">Temporary issue view</span></div>{issues.length ? <div className="inspection-list">{issues.map(issue => <article className="inspection-row" key={issue.id}><div><strong>{issue.title}</strong><small>{vehicles.find(vehicle => vehicle.id === issue.vehicleId)?.name ?? 'Vehicle unavailable'} · {new Date(issue.createdAt).toLocaleString()}</small></div><span className="tag red">{issue.status}</span></article>)}</div> : <Empty title="No linked issues" body="Failed inspection items can create issues here until the full Issues module is available." />}</section> : <section className="panel"><div className="toolbar"><select aria-label="Filter inspections by vehicle" value={vehicleFilter} onChange={event => setParams(event.target.value ? { vehicle: event.target.value } : {})}><option value="">All vehicles</option>{vehicles.map(vehicle => <option key={vehicle.id} value={vehicle.id}>{vehicle.name}</option>)}</select></div>{!shown.length ? <Empty title={view === 'Open' ? 'No inspections in progress' : 'No submitted inspections'} body={view === 'Open' ? 'Start a vehicle inspection or resume a saved draft when one appears here.' : 'Completed inspections will create a permanent vehicle history.'} /> : <div className="inspection-list">{shown.map(inspection => <article className="inspection-row" key={inspection.id}><div><strong>{inspection.templateName}</strong><small>{vehicles.find(vehicle => vehicle.id === inspection.vehicleId)?.name ?? 'Vehicle unavailable'} · Updated {new Date(inspection.updatedAt).toLocaleString()}</small></div><span className={`inspection-status status-${inspection.status.toLowerCase()}`}>{inspection.status}</span>{inspection.status === 'Draft' ? <button className="primary" onClick={() => setActive(inspection)}>Resume</button> : <Link className="secondary" to={`/vehicles/${inspection.vehicleId}?tab=inspections`}>Vehicle history</Link>}</article>)}</div>}</section>}
-  </div>
+  const [params, setParams] = useSearchParams();
+  const vehicleFilter = params.get("vehicle") ?? "";
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [templates, setTemplates] = useState<InspectionTemplate[]>([]);
+  const [inspections, setInspections] = useState<Inspection[]>([]);
+  const [issues, setIssues] = useState<InspectionIssue[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [view, setView] = useState<"Open" | "History" | "Templates" | "Linked issues">("Open");
+  const [active, setActive] = useState<Inspection | null>(null);
+  const [templateEditor, setTemplateEditor] = useState<InspectionTemplate | null>(null);
+  const [retry, setRetry] = useState(0);
+  useEffect(() => {
+    let live = true;
+    setLoading(true);
+    setError("");
+    Promise.all([
+      fetchVehicles(),
+      loadInspectionTemplates(),
+      loadInspections(),
+      loadInspectionIssues(),
+    ])
+      .then(([fleet, templateList, records, linked]) => {
+        if (live) {
+          setVehicles(fleet);
+          setTemplates(templateList);
+          setInspections(records);
+          setIssues(linked);
+        }
+      })
+      .catch((reason) => {
+        if (live)
+          setError(reason instanceof Error ? reason.message : "Could not load inspections.");
+      })
+      .finally(() => {
+        if (live) setLoading(false);
+      });
+    return () => {
+      live = false;
+    };
+  }, [retry]);
+  const available = useMemo(
+    () =>
+      templates.filter(
+        (template) =>
+          !template.archivedAt &&
+          vehicles.some(
+            (vehicle) =>
+              (!vehicleFilter || vehicle.id === vehicleFilter) &&
+              (template.vehicleIds.includes(vehicle.id) ||
+                template.vehicleTypes.includes(vehicle.type)),
+          ),
+      ),
+    [templates, vehicles, vehicleFilter],
+  );
+  const start = async () => {
+    const template = available[0];
+    const vehicle =
+      template &&
+      (vehicles.find(
+        (item) =>
+          item.id === vehicleFilter &&
+          (template.vehicleIds.includes(item.id) || template.vehicleTypes.includes(item.type)),
+      ) ??
+        vehicles.find(
+          (item) =>
+            template.vehicleIds.includes(item.id) || template.vehicleTypes.includes(item.type),
+        ));
+    if (!template || !vehicle) return;
+    setNotice("");
+    setError("");
+    try {
+      const draft = await saveInspection({
+        id: "",
+        templateId: template.id,
+        templateName: template.name,
+        vehicleId: vehicle.id,
+        status: "Draft",
+        notes: "",
+        startedAt: timestamp(),
+        submittedAt: null,
+        updatedAt: timestamp(),
+        responses: [],
+      });
+      setInspections((current) => [draft, ...current]);
+      setActive(draft);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Could not start inspection.");
+    }
+  };
+  if (loading)
+    return (
+      <section className="empty-state" role="status">
+        <span className="loader" />
+        <h2>Loading inspections</h2>
+        <p>Retrieving templates, drafts, and inspection history…</p>
+      </section>
+    );
+  if (error)
+    return (
+      <section className="empty-state">
+        <div className="state-icon">!</div>
+        <h2>We couldn’t load inspections</h2>
+        <p role="alert">{error}</p>
+        <button className="secondary" onClick={() => setRetry((value) => value + 1)}>
+          Try again
+        </button>
+      </section>
+    );
+  if (templateEditor)
+    return (
+      <TemplateEditor
+        template={templateEditor}
+        vehicles={vehicles}
+        onCancel={() => setTemplateEditor(null)}
+        onSave={async (template) => {
+          const saved = await saveInspectionTemplate(template);
+          setTemplates((current) =>
+            template.id
+              ? current.map((item) => (item.id === template.id ? saved : item))
+              : [...current, saved],
+          );
+          setTemplateEditor(null);
+          setNotice("Template saved.");
+          setView("Templates");
+        }}
+      />
+    );
+  if (active) {
+    const template = templates.find((item) => item.id === active.templateId);
+    if (!template) return null;
+    return (
+      <InspectionRunner
+        inspection={active}
+        template={template}
+        vehicle={vehicles.find((item) => item.id === active.vehicleId)}
+        issues={issues}
+        onChange={setActive}
+        onClose={() => setActive(null)}
+        onIssue={async (item) => {
+          const issue = await saveInspectionIssue(createInspectionIssue(active, item));
+          setIssues((current) => [issue, ...current]);
+          setNotice("Linked issue created.");
+        }}
+        notice={notice}
+        onSave={async (submit) => {
+          const missing = submit ? requiredInspectionItemsMissing(template, active) : [];
+          if (missing.length)
+            throw new Error(
+              `${missing.length} required item${missing.length === 1 ? " is" : "s are"} incomplete: ${missing.slice(0, 2).join(", ")}.`,
+            );
+          const result = inspectionStatus(template, active);
+          const saved = await saveInspection({
+            ...active,
+            status: submit ? result : "Draft",
+            submittedAt: submit ? timestamp() : null,
+          });
+          setInspections((current) => current.map((item) => (item.id === saved.id ? saved : item)));
+          if (submit) {
+            setActive(null);
+            setView("History");
+            setNotice(`Inspection submitted: ${result}.`);
+          } else {
+            setActive(saved);
+            setNotice("Draft saved.");
+          }
+        }}
+      />
+    );
+  }
+  const shown = inspections.filter(
+    (item) =>
+      (!vehicleFilter || item.vehicleId === vehicleFilter) &&
+      (view === "Open"
+        ? item.status === "Draft"
+        : view === "History"
+          ? item.status !== "Draft"
+          : true),
+  );
+  const newTemplate = (): InspectionTemplate => ({
+    id: "",
+    name: "",
+    description: "",
+    vehicleTypes: ["Truck"],
+    vehicleIds: [],
+    cadenceDays: 1,
+    archivedAt: null,
+    createdAt: "",
+    updatedAt: "",
+    items: [
+      {
+        id: crypto.randomUUID(),
+        label: "",
+        responseType: "pass_fail_na",
+        required: true,
+        instructions: "",
+        position: 0,
+      },
+    ],
+  });
+  return (
+    <div className="content inspections-content">
+      <section className="welcome">
+        <div>
+          <p className="eyebrow">Safety & compliance</p>
+          <h2>Inspections</h2>
+          <p>Conduct checks, resolve failures, and keep every vehicle ready.</p>
+        </div>
+        <button className="primary" disabled={!available.length} onClick={start}>
+          ＋ Start inspection
+        </button>
+      </section>
+      {notice && (
+        <p className="success" role="status">
+          {notice}
+        </p>
+      )}
+      <nav className="inspection-tabs" aria-label="Inspection views">
+        {(["Open", "History", "Templates", "Linked issues"] as const).map((item) => (
+          <button
+            key={item}
+            aria-current={view === item ? "page" : undefined}
+            onClick={() => {
+              setView(item);
+              setNotice("");
+            }}
+          >
+            {item}
+          </button>
+        ))}
+      </nav>
+      {view === "Templates" ? (
+        <section className="panel">
+          <div className="panel-heading">
+            <div>
+              <h3>Inspection templates</h3>
+              <p className="muted">
+                Assign reusable checklists by vehicle type or specific vehicle.
+              </p>
+            </div>
+            <button className="secondary" onClick={() => setTemplateEditor(newTemplate())}>
+              ＋ New template
+            </button>
+          </div>
+          <div className="template-grid">
+            {templates.map((template) => (
+              <article
+                className={`template-card${template.archivedAt ? " archived" : ""}`}
+                key={template.id}
+              >
+                <div>
+                  <span className="tag">{template.items.length} items</span>
+                  {template.archivedAt && <span className="tag amber">Archived</span>}
+                  <h3>{template.name}</h3>
+                  <p>{template.description}</p>
+                  <small>
+                    {template.vehicleTypes.join(", ") ||
+                      `${template.vehicleIds.length} selected vehicle(s)`}{" "}
+                    ·{" "}
+                    {template.cadenceDays
+                      ? `Every ${template.cadenceDays} day(s)`
+                      : "No recurring schedule"}
+                  </small>
+                </div>
+                <div className="card-actions">
+                  <button
+                    className="text-button"
+                    aria-label={`Edit ${template.name}`}
+                    onClick={() => setTemplateEditor(template)}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    className="text-button"
+                    aria-label={`Duplicate ${template.name}`}
+                    onClick={() =>
+                      setTemplateEditor({
+                        ...template,
+                        id: "",
+                        name: `${template.name} copy`,
+                        createdAt: "",
+                        updatedAt: "",
+                        items: template.items.map((item) => ({ ...item, id: crypto.randomUUID() })),
+                      })
+                    }
+                  >
+                    Duplicate
+                  </button>
+                  <button
+                    className="text-button"
+                    onClick={async () => {
+                      const saved = await saveInspectionTemplate({
+                        ...template,
+                        archivedAt: template.archivedAt ? null : timestamp(),
+                      });
+                      setTemplates((current) =>
+                        current.map((item) => (item.id === saved.id ? saved : item)),
+                      );
+                    }}
+                  >
+                    {template.archivedAt ? "Restore" : "Archive"}
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : view === "Linked issues" ? (
+        <section className="panel">
+          <div className="panel-heading">
+            <h3>Inspection-linked issues</h3>
+            <span className="count-badge">Temporary issue view</span>
+          </div>
+          {issues.length ? (
+            <div className="inspection-list">
+              {issues.map((issue) => (
+                <article className="inspection-row" key={issue.id}>
+                  <div>
+                    <strong>{issue.title}</strong>
+                    <small>
+                      {vehicles.find((vehicle) => vehicle.id === issue.vehicleId)?.name ??
+                        "Vehicle unavailable"}{" "}
+                      · {new Date(issue.createdAt).toLocaleString()}
+                    </small>
+                  </div>
+                  <span className="tag red">{issue.status}</span>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <Empty
+              title="No linked issues"
+              body="Failed inspection items can create issues here until the full Issues module is available."
+            />
+          )}
+        </section>
+      ) : (
+        <section className="panel">
+          <div className="toolbar">
+            <select
+              aria-label="Filter inspections by vehicle"
+              value={vehicleFilter}
+              onChange={(event) =>
+                setParams(event.target.value ? { vehicle: event.target.value } : {})
+              }
+            >
+              <option value="">All vehicles</option>
+              {vehicles.map((vehicle) => (
+                <option key={vehicle.id} value={vehicle.id}>
+                  {vehicle.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          {!shown.length ? (
+            <Empty
+              title={view === "Open" ? "No inspections in progress" : "No submitted inspections"}
+              body={
+                view === "Open"
+                  ? "Start a vehicle inspection or resume a saved draft when one appears here."
+                  : "Completed inspections will create a permanent vehicle history."
+              }
+            />
+          ) : (
+            <div className="inspection-list">
+              {shown.map((inspection) => (
+                <article className="inspection-row" key={inspection.id}>
+                  <div>
+                    <strong>{inspection.templateName}</strong>
+                    <small>
+                      {vehicles.find((vehicle) => vehicle.id === inspection.vehicleId)?.name ??
+                        "Vehicle unavailable"}{" "}
+                      · Updated {new Date(inspection.updatedAt).toLocaleString()}
+                    </small>
+                  </div>
+                  <span className={`inspection-status status-${inspection.status.toLowerCase()}`}>
+                    {inspection.status}
+                  </span>
+                  {inspection.status === "Draft" ? (
+                    <button className="primary" onClick={() => setActive(inspection)}>
+                      Resume
+                    </button>
+                  ) : (
+                    <Link
+                      className="secondary"
+                      to={`/vehicles/${inspection.vehicleId}?tab=inspections`}
+                    >
+                      Vehicle history
+                    </Link>
+                  )}
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+    </div>
+  );
 }
 
-function Empty({ title, body }: { title: string; body: string }) { return <div className="inspection-empty"><div className="state-icon">✓</div><strong>{title}</strong><p>{body}</p></div> }
-
-function InspectionRunner({ inspection, template, vehicle, issues, notice, onChange, onClose, onSave, onIssue }: { inspection: Inspection; template: InspectionTemplate; vehicle?: Vehicle; issues: InspectionIssue[]; notice: string; onChange: (inspection: Inspection) => void; onClose: () => void; onSave: (submit: boolean) => Promise<void>; onIssue: (item: InspectionTemplate['items'][number]) => Promise<void> }) {
-  const [saving, setSaving] = useState(false); const [error, setError] = useState(''); const updateResponse = (itemId: string, patch: Partial<InspectionResponse>) => { const existing = inspection.responses.find(item => item.itemId === itemId) ?? { itemId, value: null, notes: '', photoPaths: [] }; onChange({ ...inspection, responses: [...inspection.responses.filter(item => item.itemId !== itemId), { ...existing, ...patch }] }) }; const perform = async (submit: boolean) => { setSaving(true); setError(''); try { await onSave(submit) } catch (reason) { setError(reason instanceof Error ? reason.message : 'Could not save inspection.') } finally { setSaving(false) } }
-  return <div className="content inspection-runner"><button className="back-link" onClick={onClose}>← Back to inspections</button><section className="runner-heading"><div><p className="eyebrow">{vehicle?.name ?? 'Vehicle'}</p><h2>{template.name}</h2><p>{template.description}</p></div><span className="inspection-status status-draft">Draft</span></section>{notice && <p className="success" role="status">{notice}</p>}{error && <p className="error runner-error" role="alert">{error}</p>}<div className="inspection-checklist">{template.items.map((item, index) => { const response = inspection.responses.find(entry => entry.itemId === item.id); const failed = response?.value === 'fail'; const linked = issues.some(issue => issue.inspectionId === inspection.id && issue.inspectionItemId === item.id); return <article className={`panel inspection-item${failed ? ' inspection-item-failed' : ''}`} key={item.id}><div className="inspection-item-heading"><span className="item-number">{index + 1}</span><div><h3>{item.label}{item.required && <i>Required</i>}</h3>{item.instructions && <p>{item.instructions}</p>}</div></div><ResponseControl item={item} response={response} inspectionId={inspection.id || 'draft'} onChange={patch => updateResponse(item.id, patch)} />{failed && <div className="failure-box"><strong>Inspection item failed</strong><p>Add notes or a photo to document the condition, then create a linked issue for follow-up.</p><button className="secondary" disabled={linked} onClick={() => void onIssue(item)}>{linked ? 'Issue linked' : 'Create linked issue'}</button></div>}<label className="item-notes">Item notes<textarea rows={2} value={response?.notes ?? ''} placeholder="Add details for this item…" onChange={event => updateResponse(item.id, { notes: event.target.value })} /></label></article> })}</div><label className="panel runner-notes">Overall inspection notes<textarea rows={4} value={inspection.notes} onChange={event => onChange({ ...inspection, notes: event.target.value })} /></label><div className="runner-actions"><button className="secondary" disabled={saving} onClick={() => void perform(false)}>Save draft</button><button className="primary" disabled={saving} onClick={() => void perform(true)}>{saving ? 'Saving…' : 'Submit inspection'}</button></div></div>
+function Empty({ title, body }: { title: string; body: string }) {
+  return (
+    <div className="inspection-empty">
+      <div className="state-icon">✓</div>
+      <strong>{title}</strong>
+      <p>{body}</p>
+    </div>
+  );
 }
 
-function ResponseControl({ item, response, inspectionId, onChange }: { item: InspectionTemplate['items'][number]; response?: InspectionResponse; inspectionId: string; onChange: (patch: Partial<InspectionResponse>) => void }) {
-  if (item.responseType === 'pass_fail' || item.responseType === 'pass_fail_na') return <div className="segmented" role="group" aria-label={`${item.label} response`}>{['pass', 'fail', ...(item.responseType === 'pass_fail_na' ? ['na'] : [])].map(value => <button key={value} className={response?.value === value ? 'selected' : ''} aria-pressed={response?.value === value} onClick={() => onChange({ value })}>{value === 'na' ? 'N/A' : value[0].toUpperCase() + value.slice(1)}</button>)}</div>
-  if (item.responseType === 'photo') return <label className="photo-response"><span>{response?.photoPaths.length ? `${response.photoPaths.length} photo attached` : 'Take or choose a photo'}</span><input type="file" accept="image/*" capture="environment" onChange={async event => { const file = event.target.files?.[0]; if (!file) return; const path = await uploadInspectionPhoto(inspectionId, item.id, file); onChange({ value: 'photo', photoPaths: [...(response?.photoPaths ?? []), path] }) }} /></label>
-  return <input className="inspection-input" aria-label={`${item.label} response`} type={item.responseType === 'number' || item.responseType === 'meter' ? 'number' : 'text'} inputMode={item.responseType === 'number' || item.responseType === 'meter' ? 'decimal' : undefined} value={response?.value ?? ''} onChange={event => onChange({ value: item.responseType === 'number' || item.responseType === 'meter' ? (event.target.value === '' ? null : Number(event.target.value)) : event.target.value })} />
+function InspectionRunner({
+  inspection,
+  template,
+  vehicle,
+  issues,
+  notice,
+  onChange,
+  onClose,
+  onSave,
+  onIssue,
+}: {
+  inspection: Inspection;
+  template: InspectionTemplate;
+  vehicle?: Vehicle;
+  issues: InspectionIssue[];
+  notice: string;
+  onChange: (inspection: Inspection) => void;
+  onClose: () => void;
+  onSave: (submit: boolean) => Promise<void>;
+  onIssue: (item: InspectionTemplate["items"][number]) => Promise<void>;
+}) {
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const updateResponse = (itemId: string, patch: Partial<InspectionResponse>) => {
+    const existing = inspection.responses.find((item) => item.itemId === itemId) ?? {
+      itemId,
+      value: null,
+      notes: "",
+      photoPaths: [],
+    };
+    onChange({
+      ...inspection,
+      responses: [
+        ...inspection.responses.filter((item) => item.itemId !== itemId),
+        { ...existing, ...patch },
+      ],
+    });
+  };
+  const perform = async (submit: boolean) => {
+    setSaving(true);
+    setError("");
+    try {
+      await onSave(submit);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Could not save inspection.");
+    } finally {
+      setSaving(false);
+    }
+  };
+  return (
+    <div className="content inspection-runner">
+      <button className="back-link" onClick={onClose}>
+        ← Back to inspections
+      </button>
+      <section className="runner-heading">
+        <div>
+          <p className="eyebrow">{vehicle?.name ?? "Vehicle"}</p>
+          <h2>{template.name}</h2>
+          <p>{template.description}</p>
+        </div>
+        <span className="inspection-status status-draft">Draft</span>
+      </section>
+      {notice && (
+        <p className="success" role="status">
+          {notice}
+        </p>
+      )}
+      {error && (
+        <p className="error runner-error" role="alert">
+          {error}
+        </p>
+      )}
+      <div className="inspection-checklist">
+        {template.items.map((item, index) => {
+          const response = inspection.responses.find((entry) => entry.itemId === item.id);
+          const failed = response?.value === "fail";
+          const linked = issues.some(
+            (issue) => issue.inspectionId === inspection.id && issue.inspectionItemId === item.id,
+          );
+          return (
+            <article
+              className={`panel inspection-item${failed ? " inspection-item-failed" : ""}`}
+              key={item.id}
+            >
+              <div className="inspection-item-heading">
+                <span className="item-number">{index + 1}</span>
+                <div>
+                  <h3>
+                    {item.label}
+                    {item.required && <i>Required</i>}
+                  </h3>
+                  {item.instructions && <p>{item.instructions}</p>}
+                </div>
+              </div>
+              <ResponseControl
+                item={item}
+                response={response}
+                inspectionId={inspection.id || "draft"}
+                onChange={(patch) => updateResponse(item.id, patch)}
+              />
+              {failed && (
+                <div className="failure-box">
+                  <strong>Inspection item failed</strong>
+                  <p>
+                    Add notes or a photo to document the condition, then create a linked issue for
+                    follow-up.
+                  </p>
+                  <button
+                    className="secondary"
+                    disabled={linked}
+                    onClick={() => void onIssue(item)}
+                  >
+                    {linked ? "Issue linked" : "Create linked issue"}
+                  </button>
+                </div>
+              )}
+              <label className="item-notes">
+                Item notes
+                <textarea
+                  rows={2}
+                  value={response?.notes ?? ""}
+                  placeholder="Add details for this item…"
+                  onChange={(event) => updateResponse(item.id, { notes: event.target.value })}
+                />
+              </label>
+            </article>
+          );
+        })}
+      </div>
+      <label className="panel runner-notes">
+        Overall inspection notes
+        <textarea
+          rows={4}
+          value={inspection.notes}
+          onChange={(event) => onChange({ ...inspection, notes: event.target.value })}
+        />
+      </label>
+      <div className="runner-actions">
+        <button className="secondary" disabled={saving} onClick={() => void perform(false)}>
+          Save draft
+        </button>
+        <button className="primary" disabled={saving} onClick={() => void perform(true)}>
+          {saving ? "Saving…" : "Submit inspection"}
+        </button>
+      </div>
+    </div>
+  );
 }
 
-function TemplateEditor({ template, vehicles, onCancel, onSave }: { template: InspectionTemplate; vehicles: Vehicle[]; onCancel: () => void; onSave: (template: InspectionTemplate) => Promise<void> }) {
-  const [form, setForm] = useState(template); const [saving, setSaving] = useState(false); const [error, setError] = useState(''); const updateItem = (index: number, patch: Partial<InspectionTemplate['items'][number]>) => setForm(current => ({ ...current, items: current.items.map((item, itemIndex) => itemIndex === index ? { ...item, ...patch } : item) }))
-  return <div className="content"><button className="back-link" onClick={onCancel}>← Back to templates</button><form className="panel template-editor" onSubmit={async event => { event.preventDefault(); setSaving(true); setError(''); try { await onSave(form) } catch (reason) { setError(reason instanceof Error ? reason.message : 'Could not save template.') } finally { setSaving(false) } }}><div className="panel-heading"><div><p className="eyebrow">Template administration</p><h2>{form.id ? 'Edit inspection template' : 'New inspection template'}</h2></div></div><div className="form-grid"><label>Template name<input required value={form.name} onChange={event => setForm({ ...form, name: event.target.value })} /></label><label>Repeat every (days)<input type="number" min="1" value={form.cadenceDays ?? ''} onChange={event => setForm({ ...form, cadenceDays: event.target.value ? Number(event.target.value) : null })} /></label><label className="span-two">Description<textarea rows={3} value={form.description} onChange={event => setForm({ ...form, description: event.target.value })} /></label><label>Assign to vehicle type<select value={form.vehicleTypes[0] ?? ''} onChange={event => setForm({ ...form, vehicleTypes: event.target.value ? [event.target.value] : [] })}><option value="">Specific vehicles only</option>{Array.from(new Set(vehicles.map(vehicle => vehicle.type))).map(type => <option key={type}>{type}</option>)}</select></label><label>Specific vehicle<select value={form.vehicleIds[0] ?? ''} onChange={event => setForm({ ...form, vehicleIds: event.target.value ? [event.target.value] : [] })}><option value="">No specific vehicle</option>{vehicles.map(vehicle => <option key={vehicle.id} value={vehicle.id}>{vehicle.name}</option>)}</select></label></div><div className="template-items-heading"><h3>Checklist items</h3><button type="button" className="secondary" onClick={() => setForm({ ...form, items: [...form.items, { id: crypto.randomUUID(), label: '', responseType: 'pass_fail_na', required: true, instructions: '', position: form.items.length }] })}>＋ Add item</button></div><div className="template-items">{form.items.map((item, index) => <article key={item.id}><span className="item-number">{index + 1}</span><label>Item label<input required value={item.label} onChange={event => updateItem(index, { label: event.target.value })} /></label><label>Response<select value={item.responseType} onChange={event => updateItem(index, { responseType: event.target.value as InspectionResponseType })}>{Object.entries(responseLabels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label><label className="required-check"><input type="checkbox" checked={item.required} onChange={event => updateItem(index, { required: event.target.checked })} /> Required</label><label className="item-instructions">Instructions<input value={item.instructions} onChange={event => updateItem(index, { instructions: event.target.value })} /></label><button type="button" className="icon-close" aria-label={`Remove ${item.label || `item ${index + 1}`}`} onClick={() => setForm({ ...form, items: form.items.filter((_, itemIndex) => itemIndex !== index) })}>×</button></article>)}</div>{error && <p className="error" role="alert">{error}</p>}<div className="form-actions"><button type="button" className="secondary" onClick={onCancel}>Cancel</button><button className="primary" disabled={saving}>{saving ? 'Saving…' : 'Save template'}</button></div></form></div>
+function ResponseControl({
+  item,
+  response,
+  inspectionId,
+  onChange,
+}: {
+  item: InspectionTemplate["items"][number];
+  response?: InspectionResponse;
+  inspectionId: string;
+  onChange: (patch: Partial<InspectionResponse>) => void;
+}) {
+  if (item.responseType === "pass_fail" || item.responseType === "pass_fail_na")
+    return (
+      <div className="segmented" role="group" aria-label={`${item.label} response`}>
+        {["pass", "fail", ...(item.responseType === "pass_fail_na" ? ["na"] : [])].map((value) => (
+          <button
+            key={value}
+            className={response?.value === value ? "selected" : ""}
+            aria-pressed={response?.value === value}
+            onClick={() => onChange({ value })}
+          >
+            {value === "na" ? "N/A" : value[0].toUpperCase() + value.slice(1)}
+          </button>
+        ))}
+      </div>
+    );
+  if (item.responseType === "photo")
+    return (
+      <label className="photo-response">
+        <span>
+          {response?.photoPaths.length
+            ? `${response.photoPaths.length} photo attached`
+            : "Take or choose a photo"}
+        </span>
+        <input
+          type="file"
+          accept="image/*"
+          capture="environment"
+          onChange={async (event) => {
+            const file = event.target.files?.[0];
+            if (!file) return;
+            const path = await uploadInspectionPhoto(inspectionId, item.id, file);
+            onChange({ value: "photo", photoPaths: [...(response?.photoPaths ?? []), path] });
+          }}
+        />
+      </label>
+    );
+  return (
+    <input
+      className="inspection-input"
+      aria-label={`${item.label} response`}
+      type={item.responseType === "number" || item.responseType === "meter" ? "number" : "text"}
+      inputMode={
+        item.responseType === "number" || item.responseType === "meter" ? "decimal" : undefined
+      }
+      value={response?.value ?? ""}
+      onChange={(event) =>
+        onChange({
+          value:
+            item.responseType === "number" || item.responseType === "meter"
+              ? event.target.value === ""
+                ? null
+                : Number(event.target.value)
+              : event.target.value,
+        })
+      }
+    />
+  );
+}
+
+function TemplateEditor({
+  template,
+  vehicles,
+  onCancel,
+  onSave,
+}: {
+  template: InspectionTemplate;
+  vehicles: Vehicle[];
+  onCancel: () => void;
+  onSave: (template: InspectionTemplate) => Promise<void>;
+}) {
+  const [form, setForm] = useState(template);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const updateItem = (index: number, patch: Partial<InspectionTemplate["items"][number]>) =>
+    setForm((current) => ({
+      ...current,
+      items: current.items.map((item, itemIndex) =>
+        itemIndex === index ? { ...item, ...patch } : item,
+      ),
+    }));
+  return (
+    <div className="content">
+      <button className="back-link" onClick={onCancel}>
+        ← Back to templates
+      </button>
+      <form
+        className="panel template-editor"
+        onSubmit={async (event) => {
+          event.preventDefault();
+          setSaving(true);
+          setError("");
+          try {
+            await onSave(form);
+          } catch (reason) {
+            setError(reason instanceof Error ? reason.message : "Could not save template.");
+          } finally {
+            setSaving(false);
+          }
+        }}
+      >
+        <div className="panel-heading">
+          <div>
+            <p className="eyebrow">Template administration</p>
+            <h2>{form.id ? "Edit inspection template" : "New inspection template"}</h2>
+          </div>
+        </div>
+        <div className="form-grid">
+          <label>
+            Template name
+            <input
+              required
+              value={form.name}
+              onChange={(event) => setForm({ ...form, name: event.target.value })}
+            />
+          </label>
+          <label>
+            Repeat every (days)
+            <input
+              type="number"
+              min="1"
+              value={form.cadenceDays ?? ""}
+              onChange={(event) =>
+                setForm({
+                  ...form,
+                  cadenceDays: event.target.value ? Number(event.target.value) : null,
+                })
+              }
+            />
+          </label>
+          <label className="span-two">
+            Description
+            <textarea
+              rows={3}
+              value={form.description}
+              onChange={(event) => setForm({ ...form, description: event.target.value })}
+            />
+          </label>
+          <label>
+            Assign to vehicle type
+            <select
+              value={form.vehicleTypes[0] ?? ""}
+              onChange={(event) =>
+                setForm({ ...form, vehicleTypes: event.target.value ? [event.target.value] : [] })
+              }
+            >
+              <option value="">Specific vehicles only</option>
+              {Array.from(new Set(vehicles.map((vehicle) => vehicle.type))).map((type) => (
+                <option key={type}>{type}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Specific vehicle
+            <select
+              value={form.vehicleIds[0] ?? ""}
+              onChange={(event) =>
+                setForm({ ...form, vehicleIds: event.target.value ? [event.target.value] : [] })
+              }
+            >
+              <option value="">No specific vehicle</option>
+              {vehicles.map((vehicle) => (
+                <option key={vehicle.id} value={vehicle.id}>
+                  {vehicle.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <div className="template-items-heading">
+          <h3>Checklist items</h3>
+          <button
+            type="button"
+            className="secondary"
+            onClick={() =>
+              setForm({
+                ...form,
+                items: [
+                  ...form.items,
+                  {
+                    id: crypto.randomUUID(),
+                    label: "",
+                    responseType: "pass_fail_na",
+                    required: true,
+                    instructions: "",
+                    position: form.items.length,
+                  },
+                ],
+              })
+            }
+          >
+            ＋ Add item
+          </button>
+        </div>
+        <div className="template-items">
+          {form.items.map((item, index) => (
+            <article key={item.id}>
+              <span className="item-number">{index + 1}</span>
+              <label>
+                Item label
+                <input
+                  required
+                  value={item.label}
+                  onChange={(event) => updateItem(index, { label: event.target.value })}
+                />
+              </label>
+              <label>
+                Response
+                <select
+                  value={item.responseType}
+                  onChange={(event) =>
+                    updateItem(index, {
+                      responseType: event.target.value as InspectionResponseType,
+                    })
+                  }
+                >
+                  {Object.entries(responseLabels).map(([value, label]) => (
+                    <option value={value} key={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="required-check">
+                <input
+                  type="checkbox"
+                  checked={item.required}
+                  onChange={(event) => updateItem(index, { required: event.target.checked })}
+                />{" "}
+                Required
+              </label>
+              <label className="item-instructions">
+                Instructions
+                <input
+                  value={item.instructions}
+                  onChange={(event) => updateItem(index, { instructions: event.target.value })}
+                />
+              </label>
+              <button
+                type="button"
+                className="icon-close"
+                aria-label={`Remove ${item.label || `item ${index + 1}`}`}
+                onClick={() =>
+                  setForm({
+                    ...form,
+                    items: form.items.filter((_, itemIndex) => itemIndex !== index),
+                  })
+                }
+              >
+                ×
+              </button>
+            </article>
+          ))}
+        </div>
+        {error && (
+          <p className="error" role="alert">
+            {error}
+          </p>
+        )}
+        <div className="form-actions">
+          <button type="button" className="secondary" onClick={onCancel}>
+            Cancel
+          </button>
+          <button className="primary" disabled={saving}>
+            {saving ? "Saving…" : "Save template"}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
 }
 
 export function InspectionVehicleHistory({ vehicleId }: { vehicleId: string }) {
-  const [records, setRecords] = useState<Inspection[]>([]); const [error, setError] = useState(''); useEffect(() => { loadInspections().then(items => setRecords(items.filter(item => item.vehicleId === vehicleId && item.status !== 'Draft'))).catch(reason => setError(reason.message)) }, [vehicleId]); if (error) return <p role="alert" className="error">Could not load inspection history: {error}</p>; return <section className="panel"><div className="panel-heading"><h3>Inspection history</h3><Link to={`/inspections?vehicle=${encodeURIComponent(vehicleId)}`}>Open inspections</Link></div>{records.length ? records.map(record => <div className="inspection-row" key={record.id}><div><strong>{record.templateName}</strong><small>{record.submittedAt ? new Date(record.submittedAt).toLocaleString() : ''}</small></div><span className={`inspection-status status-${record.status.toLowerCase()}`}>{record.status}</span></div>) : <p className="muted">No submitted inspections for this vehicle yet.</p>}</section>
+  const [records, setRecords] = useState<Inspection[]>([]);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    loadInspections()
+      .then((items) =>
+        setRecords(items.filter((item) => item.vehicleId === vehicleId && item.status !== "Draft")),
+      )
+      .catch((reason) => setError(reason.message));
+  }, [vehicleId]);
+  if (error)
+    return (
+      <p role="alert" className="error">
+        Could not load inspection history: {error}
+      </p>
+    );
+  return (
+    <section className="panel">
+      <div className="panel-heading">
+        <h3>Inspection history</h3>
+        <Link to={`/inspections?vehicle=${encodeURIComponent(vehicleId)}`}>Open inspections</Link>
+      </div>
+      {records.length ? (
+        records.map((record) => (
+          <div className="inspection-row" key={record.id}>
+            <div>
+              <strong>{record.templateName}</strong>
+              <small>
+                {record.submittedAt ? new Date(record.submittedAt).toLocaleString() : ""}
+              </small>
+            </div>
+            <span className={`inspection-status status-${record.status.toLowerCase()}`}>
+              {record.status}
+            </span>
+          </div>
+        ))
+      ) : (
+        <p className="muted">No submitted inspections for this vehicle yet.</p>
+      )}
+    </section>
+  );
 }
 
-export function inspectionDashboardMetrics(templates: InspectionTemplate[], inspections: Inspection[], vehicles: Vehicle[]) {
-  const assignments = templates.flatMap(template => vehicles.filter(vehicle => template.vehicleIds.includes(vehicle.id) || template.vehicleTypes.includes(vehicle.type)).map(vehicle => ({ template, vehicle })))
-  return { overdue: assignments.filter(({ template, vehicle }) => isInspectionOverdue(template, inspections, vehicle.id)).length, failed: inspections.filter(item => item.status === 'Failed').length, recent: inspections.filter(item => item.submittedAt).sort((a, b) => String(b.submittedAt).localeCompare(String(a.submittedAt))).slice(0, 5) }
+export function inspectionDashboardMetrics(
+  templates: InspectionTemplate[],
+  inspections: Inspection[],
+  vehicles: Vehicle[],
+) {
+  const assignments = templates.flatMap((template) =>
+    vehicles
+      .filter(
+        (vehicle) =>
+          template.vehicleIds.includes(vehicle.id) || template.vehicleTypes.includes(vehicle.type),
+      )
+      .map((vehicle) => ({ template, vehicle })),
+  );
+  return {
+    overdue: assignments.filter(({ template, vehicle }) =>
+      isInspectionOverdue(template, inspections, vehicle.id),
+    ).length,
+    failed: inspections.filter((item) => item.status === "Failed").length,
+    recent: inspections
+      .filter((item) => item.submittedAt)
+      .sort((a, b) => String(b.submittedAt).localeCompare(String(a.submittedAt)))
+      .slice(0, 5),
+  };
 }

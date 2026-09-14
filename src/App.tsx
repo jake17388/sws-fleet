@@ -1,72 +1,969 @@
-import { useEffect, useMemo, useState } from 'react'
-import { BrowserRouter, Link, NavLink, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom'
-import { Dashboard } from './Dashboard'
-import { InspectionsPage, InspectionVehicleHistory } from './InspectionsPage'
-import { fetchVehicles, persistVehicle } from './persistence'
-import { ServicePage } from './ServicePage'
-import { SettingsPage, loadCompactTables, loadTheme, type Theme } from './SettingsPage'
-import { supabase } from './supabase'
-import { loadVehicles, saveVehicles, validateVehicle, vehicleStatuses, vehicleTypes, type Vehicle, type VehicleInput } from './vehicleModel'
+import { useEffect, useMemo, useState } from "react";
+import {
+  BrowserRouter,
+  Link,
+  NavLink,
+  Route,
+  Routes,
+  useLocation,
+  useNavigate,
+  useParams,
+} from "react-router-dom";
+import { Dashboard } from "./Dashboard";
+import { InspectionsPage, InspectionVehicleHistory } from "./InspectionsPage";
+import { fetchVehicles, persistVehicle } from "./persistence";
+import { ServicePage } from "./ServicePage";
+import { SettingsPage, loadCompactTables, loadTheme, type Theme } from "./SettingsPage";
+import { supabase } from "./supabase";
+import {
+  loadVehicles,
+  saveVehicles,
+  validateVehicle,
+  vehicleStatuses,
+  vehicleTypes,
+  type Vehicle,
+  type VehicleInput,
+} from "./vehicleModel";
 
 const navigation = [
-  { name: 'Dashboard', path: '/dashboard', icon: '⌂' }, { name: 'Vehicles', path: '/vehicles', icon: '▰', iconSrc: '/sws-fleet/car.png' },
-  { name: 'Service', path: '/service', icon: '◇', iconSrc: '/sws-fleet/wrench.png' }, { name: 'Inspections', path: '/inspections', icon: '✓' },
-  { name: 'Issues', path: '/issues', icon: '!', comingSoon: true }, { name: 'Reports', path: '/reports', icon: '▥', comingSoon: true },
-  { name: 'Fleet map', path: '/fleet-map', icon: '⌖', comingSoon: true }, { name: 'Settings', path: '/settings', icon: '⚙' },
-]
-const sidebarLinkLayout = { display: 'grid', gridTemplateColumns: '24px minmax(0, 1fr) auto', columnGap: '12px' } as const
+  { name: "Dashboard", path: "/dashboard", icon: "⌂" },
+  { name: "Vehicles", path: "/vehicles", icon: "▰", iconSrc: "/sws-fleet/car.png" },
+  { name: "Service", path: "/service", icon: "◇", iconSrc: "/sws-fleet/wrench.png" },
+  { name: "Inspections", path: "/inspections", icon: "✓" },
+  { name: "Issues", path: "/issues", icon: "!", comingSoon: true },
+  { name: "Reports", path: "/reports", icon: "▥", comingSoon: true },
+  { name: "Fleet map", path: "/fleet-map", icon: "⌖", comingSoon: true },
+  { name: "Settings", path: "/settings", icon: "⚙" },
+];
+const sidebarLinkLayout = {
+  display: "grid",
+  gridTemplateColumns: "24px minmax(0, 1fr) auto",
+  columnGap: "12px",
+} as const;
 
-export function App() { const basename = window.location.pathname.startsWith('/sws-fleet') ? '/sws-fleet' : undefined; return <BrowserRouter basename={basename}><AuthGate /></BrowserRouter> }
-function Brand() { return <div className="brand"><img src="/sws-fleet/brand-mark-96.png" alt="" /><span><strong>Summit West Signs</strong><small>Fleet Management</small></span></div> }
-function NavIcon({ item }: { item: (typeof navigation)[number] }) { return <span className="nav-symbol" aria-hidden="true">{'iconSrc' in item ? <img src={item.iconSrc} alt="" /> : item.icon}</span> }
+export function App() {
+  const basename = window.location.pathname.startsWith("/sws-fleet") ? "/sws-fleet" : undefined;
+  return (
+    <BrowserRouter basename={basename}>
+      <AuthGate />
+    </BrowserRouter>
+  );
+}
+function Brand() {
+  return (
+    <div className="brand">
+      <img src="/sws-fleet/brand-mark-96.png" alt="" />
+      <span>
+        <strong>Summit West Signs</strong>
+        <small>Fleet Management</small>
+      </span>
+    </div>
+  );
+}
+function NavIcon({ item }: { item: (typeof navigation)[number] }) {
+  return (
+    <span className="nav-symbol" aria-hidden="true">
+      {"iconSrc" in item ? <img src={item.iconSrc} alt="" /> : item.icon}
+    </span>
+  );
+}
 function AuthGate() {
-  const [session, setSession] = useState<unknown>(null); const [ready, setReady] = useState(!supabase || import.meta.env.MODE === 'test')
-  useEffect(() => { document.documentElement.dataset.theme = loadTheme(); if (!supabase) return; supabase.auth.getSession().then(({ data }) => { setSession(data.session); setReady(true) }); const { data } = supabase.auth.onAuthStateChange((_event, next) => setSession(next)); return () => data.subscription.unsubscribe() }, [])
-  if (!ready) return <section className="loading-state" role="status"><span className="loader" /><Brand /><p>Preparing your fleet workspace…</p></section>
-  return (!supabase || import.meta.env.MODE === 'test' || session) ? <Layout /> : <Login />
+  const [session, setSession] = useState<unknown>(null);
+  const [ready, setReady] = useState(!supabase || import.meta.env.MODE === "test");
+  useEffect(() => {
+    document.documentElement.dataset.theme = loadTheme();
+    if (!supabase) return;
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      setReady(true);
+    });
+    const { data } = supabase.auth.onAuthStateChange((_event, next) => setSession(next));
+    return () => data.subscription.unsubscribe();
+  }, []);
+  if (!ready)
+    return (
+      <section className="loading-state" role="status">
+        <span className="loader" />
+        <Brand />
+        <p>Preparing your fleet workspace…</p>
+      </section>
+    );
+  return !supabase || import.meta.env.MODE === "test" || session ? <Layout /> : <Login />;
 }
 function Login() {
-  const [email, setEmail] = useState(''); const [password, setPassword] = useState(''); const [error, setError] = useState('')
-  return <main className="login-page"><div className="login-visual"><Brand /><div><p className="eyebrow">Fleet operations</p><h1>Every vehicle.<br />One clear view.</h1><p>Manage your fleet, maintenance, and service history from one connected workspace.</p></div></div><form className="panel login-form" onSubmit={async event => { event.preventDefault(); setError(''); if (!supabase) return; const { error } = await supabase.auth.signInWithPassword({ email, password }); if (error) setError(error.message) }}><div className="login-mobile-brand"><Brand /></div><p className="eyebrow">Welcome back</p><h2>Sign in to Fleet</h2><p>Use your Summit West Signs account to continue.</p><label>Email address<input type="email" autoComplete="email" value={email} onChange={event => setEmail(event.target.value)} required /></label><label>Password<input type="password" autoComplete="current-password" value={password} onChange={event => setPassword(event.target.value)} required /></label>{error && <p className="error" role="alert">{error}</p>}<button className="primary" type="submit">Sign in</button></form></main>
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  return (
+    <main className="login-page">
+      <div className="login-visual">
+        <Brand />
+        <div>
+          <p className="eyebrow">Fleet operations</p>
+          <h1>
+            Every vehicle.
+            <br />
+            One clear view.
+          </h1>
+          <p>Manage your fleet, maintenance, and service history from one connected workspace.</p>
+        </div>
+      </div>
+      <form
+        className="panel login-form"
+        onSubmit={async (event) => {
+          event.preventDefault();
+          setError("");
+          if (!supabase) return;
+          const { error } = await supabase.auth.signInWithPassword({ email, password });
+          if (error) setError(error.message);
+        }}
+      >
+        <div className="login-mobile-brand">
+          <Brand />
+        </div>
+        <p className="eyebrow">Welcome back</p>
+        <h2>Sign in to Fleet</h2>
+        <p>Use your Summit West Signs account to continue.</p>
+        <label>
+          Email address
+          <input
+            type="email"
+            autoComplete="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            required
+          />
+        </label>
+        <label>
+          Password
+          <input
+            type="password"
+            autoComplete="current-password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            required
+          />
+        </label>
+        {error && (
+          <p className="error" role="alert">
+            {error}
+          </p>
+        )}
+        <button className="primary" type="submit">
+          Sign in
+        </button>
+      </form>
+    </main>
+  );
 }
 function Layout() {
-  const [compact, setCompact] = useState(loadCompactTables); const [theme, setTheme] = useState<Theme>(loadTheme); const location = useLocation(); const active = navigation.find(item => location.pathname.startsWith(item.path))?.name ?? 'Dashboard'
-  const applyTheme = (next: Theme) => { setTheme(next); document.documentElement.dataset.theme = next }
-  return <div className={`app-shell${compact ? ' compact-tables' : ''}`}><aside className="sidebar"><Brand /><nav aria-label="Primary navigation">{navigation.map(item => <NavLink className={({ isActive }) => isActive ? 'active' : ''} style={sidebarLinkLayout} to={item.path} key={item.name}><NavIcon item={item} /><span className="nav-label">{item.name}</span>{item.comingSoon && <small>Coming Soon</small>}</NavLink>)}</nav><div className="sidebar-footer"><div className="user-chip"><span className="avatar">JB</span><span><strong>Jake Banks</strong><small>Administrator</small></span></div><button className="signout" onClick={() => void supabase?.auth.signOut()}>Sign out</button></div></aside><main className="main-shell"><header className="topbar"><div><p className="eyebrow">{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</p><h1>{active}</h1></div><div className="header-user"><span className="avatar">JB</span><span><strong>Jake Banks</strong><small>Administrator</small></span></div></header><Routes><Route path="/" element={<Dashboard />} /><Route path="/dashboard" element={<Dashboard />} /><Route path="/vehicles" element={<VehiclesPage />} /><Route path="/vehicles/:vehicleId" element={<VehiclesPage />} /><Route path="/service" element={<ServicePage />} /><Route path="/inspections" element={<InspectionsPage />} /><Route path="/settings" element={<SettingsPage compact={compact} onCompactChange={setCompact} theme={theme} onThemeChange={applyTheme} />} />{navigation.filter(item => item.comingSoon).map(item => <Route key={item.name} path={item.path} element={<PlaceholderPage title={item.name} />} />)}</Routes></main><nav className="mobile-nav" aria-label="Mobile navigation">{navigation.slice(0, 4).map(item => <NavLink to={item.path} key={item.name}><NavIcon item={item} /><small>{item.name}</small></NavLink>)}<NavLink to="/settings"><span aria-hidden="true">⚙</span><small>More</small></NavLink></nav></div>
+  const [compact, setCompact] = useState(loadCompactTables);
+  const [theme, setTheme] = useState<Theme>(loadTheme);
+  const location = useLocation();
+  const active =
+    navigation.find((item) => location.pathname.startsWith(item.path))?.name ?? "Dashboard";
+  const applyTheme = (next: Theme) => {
+    setTheme(next);
+    document.documentElement.dataset.theme = next;
+  };
+  return (
+    <div className={`app-shell${compact ? " compact-tables" : ""}`}>
+      <aside className="sidebar">
+        <Brand />
+        <nav aria-label="Primary navigation">
+          {navigation.map((item) => (
+            <NavLink
+              className={({ isActive }) => (isActive ? "active" : "")}
+              style={sidebarLinkLayout}
+              to={item.path}
+              key={item.name}
+            >
+              <NavIcon item={item} />
+              <span className="nav-label">{item.name}</span>
+              {item.comingSoon && <small>Coming Soon</small>}
+            </NavLink>
+          ))}
+        </nav>
+        <div className="sidebar-footer">
+          <div className="user-chip">
+            <span className="avatar">JB</span>
+            <span>
+              <strong>Jake Banks</strong>
+              <small>Administrator</small>
+            </span>
+          </div>
+          <button className="signout" onClick={() => void supabase?.auth.signOut()}>
+            Sign out
+          </button>
+        </div>
+      </aside>
+      <main className="main-shell">
+        <header className="topbar">
+          <div>
+            <p className="eyebrow">
+              {new Date().toLocaleDateString("en-US", {
+                weekday: "long",
+                month: "long",
+                day: "numeric",
+                year: "numeric",
+              })}
+            </p>
+            <h1>{active}</h1>
+          </div>
+          <div className="header-user">
+            <span className="avatar">JB</span>
+            <span>
+              <strong>Jake Banks</strong>
+              <small>Administrator</small>
+            </span>
+          </div>
+        </header>
+        <Routes>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/vehicles" element={<VehiclesPage />} />
+          <Route path="/vehicles/:vehicleId" element={<VehiclesPage />} />
+          <Route path="/service" element={<ServicePage />} />
+          <Route path="/inspections" element={<InspectionsPage />} />
+          <Route
+            path="/settings"
+            element={
+              <SettingsPage
+                compact={compact}
+                onCompactChange={setCompact}
+                theme={theme}
+                onThemeChange={applyTheme}
+              />
+            }
+          />
+          {navigation
+            .filter((item) => item.comingSoon)
+            .map((item) => (
+              <Route
+                key={item.name}
+                path={item.path}
+                element={<PlaceholderPage title={item.name} />}
+              />
+            ))}
+        </Routes>
+      </main>
+      <nav className="mobile-nav" aria-label="Mobile navigation">
+        {navigation.slice(0, 4).map((item) => (
+          <NavLink to={item.path} key={item.name}>
+            <NavIcon item={item} />
+            <small>{item.name}</small>
+          </NavLink>
+        ))}
+        <NavLink to="/settings">
+          <span aria-hidden="true">⚙</span>
+          <small>More</small>
+        </NavLink>
+      </nav>
+    </div>
+  );
 }
 function VehiclesPage() {
-  const { vehicleId } = useParams(); const navigate = useNavigate(); const wantsEdit = new URLSearchParams(window.location.search).has('edit'); const [vehicles, setVehicles] = useState<Vehicle[]>(supabase ? [] : loadVehicles()); const [loading, setLoading] = useState(!!supabase); const [loadError, setLoadError] = useState(''); const [editing, setEditing] = useState(vehicleId === 'new' || wantsEdit); const [query, setQuery] = useState(''); const [status, setStatus] = useState('All'); const [sort, setSort] = useState('name'); const [openMenu, setOpenMenu] = useState('')
-  const selected = vehicleId === 'new' ? emptyVehicle() : vehicles.find(vehicle => vehicle.id === vehicleId)
-  const shown = useMemo(() => vehicles.filter(vehicle => (status === 'All' || vehicle.status === status) && Object.values(vehicle).join(' ').toLowerCase().includes(query.toLowerCase())).sort((a, b) => String(a[sort as keyof Vehicle]).localeCompare(String(b[sort as keyof Vehicle]))), [vehicles, query, status, sort])
-  useEffect(() => { let active = true; fetchVehicles().then(data => { if (active) setVehicles(data) }).catch(error => { if (active) setLoadError(error.message) }).finally(() => { if (active) setLoading(false) }); return () => { active = false } }, [])
-  useEffect(() => setEditing(vehicleId === 'new' || wantsEdit), [vehicleId, wantsEdit])
-  const watch = (vehicle: Vehicle) => { const next = vehicles.map(item => item.id === vehicle.id ? { ...item, watchers: item.watchers.includes('Jake Banks') ? item.watchers.filter(watcher => watcher !== 'Jake Banks') : [...item.watchers, 'Jake Banks'] } : item); if (!supabase) saveVehicles(next); setVehicles(next) }
-  const save = async (vehicle: Vehicle, input: VehicleInput) => { const now = new Date().toISOString(); const saved = await persistVehicle({ ...vehicle, ...input, createdAt: vehicle.createdAt || now, updatedAt: now }); setVehicles(current => vehicle.id === 'new' ? [saved, ...current] : current.map(item => item.id === vehicle.id ? saved : item)); setEditing(false); navigate(`/vehicles/${saved.id}`, { replace: true }) }
-  if (loading) return <section className="empty-state" role="status"><span className="loader" /><h2>Loading vehicles</h2><p>Retrieving the latest fleet information…</p></section>
-  if (loadError) return <section className="empty-state" role="alert"><div className="state-icon">!</div><h2>We couldn’t load the fleet</h2><p>{loadError}</p><button className="secondary" onClick={() => window.location.reload()}>Try again</button></section>
-  if (vehicleId && !selected) return <section className="empty-state"><h2>Vehicle not found</h2><p>This vehicle may have been removed or is unavailable.</p><Link className="primary" to="/vehicles">Return to vehicles</Link></section>
-  if (selected) return <VehicleDetail vehicle={selected} editing={editing} onEdit={() => setEditing(true)} onClose={() => selected.id === 'new' ? navigate('/vehicles') : setEditing(false)} onBack={() => navigate('/vehicles')} onWatch={() => watch(selected)} onSave={input => save(selected, input)} />
-  return <div className="content fleet-content"><section className="page-heading"><div><p className="eyebrow">Fleet inventory</p><h2>Vehicles</h2><p>Search, review, and manage every vehicle in your fleet.</p></div><button className="primary" onClick={() => navigate('/vehicles/new')}>＋ Add vehicle</button></section><section className="panel fleet-panel"><div className="fleet-panel-heading"><h3>All vehicles <span className="count-badge">{vehicles.length}</span></h3><span>Updated just now</span></div><div className="toolbar"><input aria-label="Search vehicles" placeholder="Search by name, VIN, plate, or group…" value={query} onChange={event => setQuery(event.target.value)} /><select aria-label="Filter by status" value={status} onChange={event => setStatus(event.target.value)}><option value="All">All statuses</option>{vehicleStatuses.map(value => <option key={value}>{value}</option>)}</select><select aria-label="Sort vehicles" value={sort} onChange={event => setSort(event.target.value)}><option value="name">Sort: Name</option><option value="year">Sort: Year</option><option value="make">Sort: Make</option><option value="currentMeter">Sort: Meter</option></select>{(query || status !== 'All') && <button className="text-button" onClick={() => { setQuery(''); setStatus('All') }}>Clear filters</button>}</div><VehicleTable vehicles={vehicles} shown={shown} openMenu={openMenu} setOpenMenu={setOpenMenu} navigate={navigate} watch={watch} clear={() => { setQuery(''); setStatus('All') }} /></section></div>
+  const { vehicleId } = useParams();
+  const navigate = useNavigate();
+  const wantsEdit = new URLSearchParams(window.location.search).has("edit");
+  const [vehicles, setVehicles] = useState<Vehicle[]>(supabase ? [] : loadVehicles());
+  const [loading, setLoading] = useState(!!supabase);
+  const [loadError, setLoadError] = useState("");
+  const [editing, setEditing] = useState(vehicleId === "new" || wantsEdit);
+  const [query, setQuery] = useState("");
+  const [status, setStatus] = useState("All");
+  const [sort, setSort] = useState("name");
+  const [openMenu, setOpenMenu] = useState("");
+  const selected =
+    vehicleId === "new" ? emptyVehicle() : vehicles.find((vehicle) => vehicle.id === vehicleId);
+  const shown = useMemo(
+    () =>
+      vehicles
+        .filter(
+          (vehicle) =>
+            (status === "All" || vehicle.status === status) &&
+            Object.values(vehicle).join(" ").toLowerCase().includes(query.toLowerCase()),
+        )
+        .sort((a, b) =>
+          String(a[sort as keyof Vehicle]).localeCompare(String(b[sort as keyof Vehicle])),
+        ),
+    [vehicles, query, status, sort],
+  );
+  useEffect(() => {
+    let active = true;
+    fetchVehicles()
+      .then((data) => {
+        if (active) setVehicles(data);
+      })
+      .catch((error) => {
+        if (active) setLoadError(error.message);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+  useEffect(() => setEditing(vehicleId === "new" || wantsEdit), [vehicleId, wantsEdit]);
+  const watch = (vehicle: Vehicle) => {
+    const next = vehicles.map((item) =>
+      item.id === vehicle.id
+        ? {
+            ...item,
+            watchers: item.watchers.includes("Jake Banks")
+              ? item.watchers.filter((watcher) => watcher !== "Jake Banks")
+              : [...item.watchers, "Jake Banks"],
+          }
+        : item,
+    );
+    if (!supabase) saveVehicles(next);
+    setVehicles(next);
+  };
+  const save = async (vehicle: Vehicle, input: VehicleInput) => {
+    const now = new Date().toISOString();
+    const saved = await persistVehicle({
+      ...vehicle,
+      ...input,
+      createdAt: vehicle.createdAt || now,
+      updatedAt: now,
+    });
+    setVehicles((current) =>
+      vehicle.id === "new"
+        ? [saved, ...current]
+        : current.map((item) => (item.id === vehicle.id ? saved : item)),
+    );
+    setEditing(false);
+    navigate(`/vehicles/${saved.id}`, { replace: true });
+  };
+  if (loading)
+    return (
+      <section className="empty-state" role="status">
+        <span className="loader" />
+        <h2>Loading vehicles</h2>
+        <p>Retrieving the latest fleet information…</p>
+      </section>
+    );
+  if (loadError)
+    return (
+      <section className="empty-state" role="alert">
+        <div className="state-icon">!</div>
+        <h2>We couldn’t load the fleet</h2>
+        <p>{loadError}</p>
+        <button className="secondary" onClick={() => window.location.reload()}>
+          Try again
+        </button>
+      </section>
+    );
+  if (vehicleId && !selected)
+    return (
+      <section className="empty-state">
+        <h2>Vehicle not found</h2>
+        <p>This vehicle may have been removed or is unavailable.</p>
+        <Link className="primary" to="/vehicles">
+          Return to vehicles
+        </Link>
+      </section>
+    );
+  if (selected)
+    return (
+      <VehicleDetail
+        vehicle={selected}
+        editing={editing}
+        onEdit={() => setEditing(true)}
+        onClose={() => (selected.id === "new" ? navigate("/vehicles") : setEditing(false))}
+        onBack={() => navigate("/vehicles")}
+        onWatch={() => watch(selected)}
+        onSave={(input) => save(selected, input)}
+      />
+    );
+  return (
+    <div className="content fleet-content">
+      <section className="page-heading">
+        <div>
+          <p className="eyebrow">Fleet inventory</p>
+          <h2>Vehicles</h2>
+          <p>Search, review, and manage every vehicle in your fleet.</p>
+        </div>
+        <button className="primary" onClick={() => navigate("/vehicles/new")}>
+          ＋ Add vehicle
+        </button>
+      </section>
+      <section className="panel fleet-panel">
+        <div className="fleet-panel-heading">
+          <h3>
+            All vehicles <span className="count-badge">{vehicles.length}</span>
+          </h3>
+          <span>Updated just now</span>
+        </div>
+        <div className="toolbar">
+          <input
+            aria-label="Search vehicles"
+            placeholder="Search by name, VIN, plate, or group…"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+          />
+          <select
+            aria-label="Filter by status"
+            value={status}
+            onChange={(event) => setStatus(event.target.value)}
+          >
+            <option value="All">All statuses</option>
+            {vehicleStatuses.map((value) => (
+              <option key={value}>{value}</option>
+            ))}
+          </select>
+          <select
+            aria-label="Sort vehicles"
+            value={sort}
+            onChange={(event) => setSort(event.target.value)}
+          >
+            <option value="name">Sort: Name</option>
+            <option value="year">Sort: Year</option>
+            <option value="make">Sort: Make</option>
+            <option value="currentMeter">Sort: Meter</option>
+          </select>
+          {(query || status !== "All") && (
+            <button
+              className="text-button"
+              onClick={() => {
+                setQuery("");
+                setStatus("All");
+              }}
+            >
+              Clear filters
+            </button>
+          )}
+        </div>
+        <VehicleTable
+          vehicles={vehicles}
+          shown={shown}
+          openMenu={openMenu}
+          setOpenMenu={setOpenMenu}
+          navigate={navigate}
+          watch={watch}
+          clear={() => {
+            setQuery("");
+            setStatus("All");
+          }}
+        />
+      </section>
+    </div>
+  );
 }
-function VehicleTable({ vehicles, shown, openMenu, setOpenMenu, navigate, watch, clear }: { vehicles: Vehicle[]; shown: Vehicle[]; openMenu: string; setOpenMenu: (id: string) => void; navigate: ReturnType<typeof useNavigate>; watch: (vehicle: Vehicle) => void; clear: () => void }) {
-  return <><div className="table-wrap" role="region" aria-label="Vehicle inventory" tabIndex={0}><table className="vehicle-table" aria-label="All vehicles"><thead><tr>{['Vehicle', 'Year', 'Make & model', 'VIN', 'Status', 'Group', 'Current meter', 'License plate', 'Watchers', ''].map(field => <th scope="col" key={field}>{field}</th>)}</tr></thead><tbody>{shown.map(vehicle => <tr key={vehicle.id}><td><button className="vehicle-link" aria-label={`Open ${vehicle.name}`} onClick={() => navigate(`/vehicles/${vehicle.id}`)}><VehiclePhoto vehicle={vehicle} /><span><strong>{vehicle.name}</strong><small>{vehicle.type}</small></span></button></td><td>{vehicle.year}</td><td>{vehicle.make}<small>{vehicle.model}</small></td><td className="mono">{vehicle.vin || '—'}</td><td><Status status={vehicle.status} /></td><td>{vehicle.group || '—'}</td><td className="number">{vehicle.currentMeter.toLocaleString()} {vehicle.meterUnit}</td><td>{vehicle.licensePlate || '—'}</td><td><button className="watch-button" aria-label={`${vehicle.watchers.includes('Jake Banks') ? 'Unwatch' : 'Watch'} ${vehicle.name}`} onClick={() => watch(vehicle)}>{vehicle.watchers.includes('Jake Banks') ? 'Watching' : 'Watch'}</button><small>{vehicle.watchers.length} watcher{vehicle.watchers.length === 1 ? '' : 's'}</small></td><td className="actions-cell"><button className="kebab" aria-label={`Actions for ${vehicle.name}`} aria-expanded={openMenu === vehicle.id} onClick={() => setOpenMenu(openMenu === vehicle.id ? '' : vehicle.id)}>•••</button>{openMenu === vehicle.id && <div className="action-menu" role="menu"><button role="menuitem" onClick={() => navigate(`/vehicles/${vehicle.id}`)}>View vehicle</button><button role="menuitem" onClick={() => navigate(`/vehicles/${vehicle.id}?edit=1`)}>Edit vehicle</button></div>}</td></tr>)}{shown.length === 0 && <tr><td colSpan={10} className="table-empty"><div className="state-icon">⌕</div><strong>{vehicles.length === 0 ? 'No vehicles yet' : 'No vehicles match your filters.'}</strong><p>{vehicles.length === 0 ? 'Add your first vehicle to start building your fleet.' : 'Try changing your search or filters.'}</p>{vehicles.length > 0 && <button className="secondary" onClick={clear}>Clear filters</button>}</td></tr>}</tbody></table></div><div className="table-summary" role="status"><span>Showing <strong>{shown.length}</strong> of {vehicles.length} vehicles</span><span>All results on one page</span></div></>
+function VehicleTable({
+  vehicles,
+  shown,
+  openMenu,
+  setOpenMenu,
+  navigate,
+  watch,
+  clear,
+}: {
+  vehicles: Vehicle[];
+  shown: Vehicle[];
+  openMenu: string;
+  setOpenMenu: (id: string) => void;
+  navigate: ReturnType<typeof useNavigate>;
+  watch: (vehicle: Vehicle) => void;
+  clear: () => void;
+}) {
+  return (
+    <>
+      <div className="table-wrap" role="region" aria-label="Vehicle inventory" tabIndex={0}>
+        <table className="vehicle-table" aria-label="All vehicles">
+          <thead>
+            <tr>
+              {[
+                "Vehicle",
+                "Year",
+                "Make & model",
+                "VIN",
+                "Status",
+                "Group",
+                "Current meter",
+                "License plate",
+                "Watchers",
+                "",
+              ].map((field) => (
+                <th scope="col" key={field}>
+                  {field}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {shown.map((vehicle) => (
+              <tr key={vehicle.id}>
+                <td>
+                  <button
+                    className="vehicle-link"
+                    aria-label={`Open ${vehicle.name}`}
+                    onClick={() => navigate(`/vehicles/${vehicle.id}`)}
+                  >
+                    <VehiclePhoto vehicle={vehicle} />
+                    <span>
+                      <strong>{vehicle.name}</strong>
+                      <small>{vehicle.type}</small>
+                    </span>
+                  </button>
+                </td>
+                <td>{vehicle.year}</td>
+                <td>
+                  {vehicle.make}
+                  <small>{vehicle.model}</small>
+                </td>
+                <td className="mono">{vehicle.vin || "—"}</td>
+                <td>
+                  <Status status={vehicle.status} />
+                </td>
+                <td>{vehicle.group || "—"}</td>
+                <td className="number">
+                  {vehicle.currentMeter.toLocaleString()} {vehicle.meterUnit}
+                </td>
+                <td>{vehicle.licensePlate || "—"}</td>
+                <td>
+                  <button
+                    className="watch-button"
+                    aria-label={`${vehicle.watchers.includes("Jake Banks") ? "Unwatch" : "Watch"} ${vehicle.name}`}
+                    onClick={() => watch(vehicle)}
+                  >
+                    {vehicle.watchers.includes("Jake Banks") ? "Watching" : "Watch"}
+                  </button>
+                  <small>
+                    {vehicle.watchers.length} watcher{vehicle.watchers.length === 1 ? "" : "s"}
+                  </small>
+                </td>
+                <td className="actions-cell">
+                  <button
+                    className="kebab"
+                    aria-label={`Actions for ${vehicle.name}`}
+                    aria-expanded={openMenu === vehicle.id}
+                    onClick={() => setOpenMenu(openMenu === vehicle.id ? "" : vehicle.id)}
+                  >
+                    •••
+                  </button>
+                  {openMenu === vehicle.id && (
+                    <div className="action-menu" role="menu">
+                      <button role="menuitem" onClick={() => navigate(`/vehicles/${vehicle.id}`)}>
+                        View vehicle
+                      </button>
+                      <button
+                        role="menuitem"
+                        onClick={() => navigate(`/vehicles/${vehicle.id}?edit=1`)}
+                      >
+                        Edit vehicle
+                      </button>
+                    </div>
+                  )}
+                </td>
+              </tr>
+            ))}
+            {shown.length === 0 && (
+              <tr>
+                <td colSpan={10} className="table-empty">
+                  <div className="state-icon">⌕</div>
+                  <strong>
+                    {vehicles.length === 0 ? "No vehicles yet" : "No vehicles match your filters."}
+                  </strong>
+                  <p>
+                    {vehicles.length === 0
+                      ? "Add your first vehicle to start building your fleet."
+                      : "Try changing your search or filters."}
+                  </p>
+                  {vehicles.length > 0 && (
+                    <button className="secondary" onClick={clear}>
+                      Clear filters
+                    </button>
+                  )}
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+      <div className="table-summary" role="status">
+        <span>
+          Showing <strong>{shown.length}</strong> of {vehicles.length} vehicles
+        </span>
+        <span>All results on one page</span>
+      </div>
+    </>
+  );
 }
-function VehicleDetail({ vehicle, editing, onEdit, onClose, onBack, onWatch, onSave }: { vehicle: Vehicle; editing: boolean; onEdit: () => void; onClose: () => void; onBack: () => void; onWatch: () => void; onSave: (input: VehicleInput) => Promise<void> }) {
-  const inspectionTab = new URLSearchParams(window.location.search).get('tab') === 'inspections'
-  return <div className="content detail-content"><button className="back-link" onClick={onBack}>← Back to vehicles</button><section className="vehicle-hero"><VehiclePhoto vehicle={vehicle} large /><div><p className="eyebrow">{vehicle.type || 'New vehicle'}</p><h2>{vehicle.name || 'Add vehicle'}</h2>{vehicle.id !== 'new' && <p>{vehicle.year} {vehicle.make} {vehicle.model} · <Status status={vehicle.status} /></p>}</div>{vehicle.id !== 'new' && <div className="hero-actions"><button className="secondary" onClick={onWatch}>{vehicle.watchers.includes('Jake Banks') ? 'Watching' : 'Watch'}</button><button className="primary" onClick={onEdit}>Edit vehicle</button></div>}</section>{editing ? <VehicleForm vehicle={vehicle} onClose={onClose} onSave={onSave} /> : <><nav className="detail-tabs" aria-label="Vehicle sections"><Link className={!inspectionTab ? 'active' : ''} to={`/vehicles/${vehicle.id}`}>Overview</Link><Link to={`/service?vehicle=${encodeURIComponent(vehicle.id)}`}>Service history</Link><Link className={inspectionTab ? 'active' : ''} to={`/vehicles/${vehicle.id}?tab=inspections`}>Inspection history</Link><span>Issues</span><span>Meter history</span></nav>{inspectionTab ? <InspectionVehicleHistory vehicleId={vehicle.id} /> : <div className="vehicle-detail-grid"><section className="panel detail-fields"><div className="panel-heading"><div><p className="eyebrow">Vehicle profile</p><h3>Vehicle details</h3></div><button className="text-button" onClick={onEdit}>Edit fields</button></div><dl>{[['Name', vehicle.name], ['Meter', `${vehicle.currentMeter.toLocaleString()} ${vehicle.meterUnit}`], ['Status', vehicle.status], ['Group', vehicle.group || 'Unassigned'], ['Type', vehicle.type], ['VIN / SN', vehicle.vin || '—'], ['License plate', vehicle.licensePlate || '—'], ['Year', vehicle.year], ['Make', vehicle.make], ['Model', vehicle.model]].map(([label, value]) => <div key={String(label)}><dt>{label}</dt><dd>{label === 'Status' ? <Status status={vehicle.status} /> : value}</dd></div>)}</dl></section><div className="detail-stack"><section className="panel location-card"><div className="panel-heading"><h3>Last known location</h3><span className="count-badge">Coming Soon</span></div><div className="map-placeholder"><span>⌖</span><p>Vehicle location will appear here when Fleet Map is connected.</p></div></section><section className="panel"><div className="panel-heading"><h3>Service & maintenance</h3><Link to={`/service?vehicle=${encodeURIComponent(vehicle.id)}`}>View history</Link></div><p className="muted">Review upcoming work, reminders, and completed maintenance for this vehicle.</p><Link className="secondary inline-action" to={`/service?vehicle=${encodeURIComponent(vehicle.id)}`}>Open service records</Link></section></div></div>}</>}</div>
+function VehicleDetail({
+  vehicle,
+  editing,
+  onEdit,
+  onClose,
+  onBack,
+  onWatch,
+  onSave,
+}: {
+  vehicle: Vehicle;
+  editing: boolean;
+  onEdit: () => void;
+  onClose: () => void;
+  onBack: () => void;
+  onWatch: () => void;
+  onSave: (input: VehicleInput) => Promise<void>;
+}) {
+  const inspectionTab = new URLSearchParams(window.location.search).get("tab") === "inspections";
+  return (
+    <div className="content detail-content">
+      <button className="back-link" onClick={onBack}>
+        ← Back to vehicles
+      </button>
+      <section className="vehicle-hero">
+        <VehiclePhoto vehicle={vehicle} large />
+        <div>
+          <p className="eyebrow">{vehicle.type || "New vehicle"}</p>
+          <h2>{vehicle.name || "Add vehicle"}</h2>
+          {vehicle.id !== "new" && (
+            <p>
+              {vehicle.year} {vehicle.make} {vehicle.model} · <Status status={vehicle.status} />
+            </p>
+          )}
+        </div>
+        {vehicle.id !== "new" && (
+          <div className="hero-actions">
+            <button className="secondary" onClick={onWatch}>
+              {vehicle.watchers.includes("Jake Banks") ? "Watching" : "Watch"}
+            </button>
+            <button className="primary" onClick={onEdit}>
+              Edit vehicle
+            </button>
+          </div>
+        )}
+      </section>
+      {editing ? (
+        <VehicleForm vehicle={vehicle} onClose={onClose} onSave={onSave} />
+      ) : (
+        <>
+          <nav className="detail-tabs" aria-label="Vehicle sections">
+            <Link className={!inspectionTab ? "active" : ""} to={`/vehicles/${vehicle.id}`}>
+              Overview
+            </Link>
+            <Link to={`/service?vehicle=${encodeURIComponent(vehicle.id)}`}>Service history</Link>
+            <Link
+              className={inspectionTab ? "active" : ""}
+              to={`/vehicles/${vehicle.id}?tab=inspections`}
+            >
+              Inspection history
+            </Link>
+            <span>Issues</span>
+            <span>Meter history</span>
+          </nav>
+          {inspectionTab ? (
+            <InspectionVehicleHistory vehicleId={vehicle.id} />
+          ) : (
+            <div className="vehicle-detail-grid">
+              <section className="panel detail-fields">
+                <div className="panel-heading">
+                  <div>
+                    <p className="eyebrow">Vehicle profile</p>
+                    <h3>Vehicle details</h3>
+                  </div>
+                  <button className="text-button" onClick={onEdit}>
+                    Edit fields
+                  </button>
+                </div>
+                <dl>
+                  {[
+                    ["Name", vehicle.name],
+                    ["Meter", `${vehicle.currentMeter.toLocaleString()} ${vehicle.meterUnit}`],
+                    ["Status", vehicle.status],
+                    ["Group", vehicle.group || "Unassigned"],
+                    ["Type", vehicle.type],
+                    ["VIN / SN", vehicle.vin || "—"],
+                    ["License plate", vehicle.licensePlate || "—"],
+                    ["Year", vehicle.year],
+                    ["Make", vehicle.make],
+                    ["Model", vehicle.model],
+                  ].map(([label, value]) => (
+                    <div key={String(label)}>
+                      <dt>{label}</dt>
+                      <dd>{label === "Status" ? <Status status={vehicle.status} /> : value}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </section>
+              <div className="detail-stack">
+                <section className="panel location-card">
+                  <div className="panel-heading">
+                    <h3>Last known location</h3>
+                    <span className="count-badge">Coming Soon</span>
+                  </div>
+                  <div className="map-placeholder">
+                    <span>⌖</span>
+                    <p>Vehicle location will appear here when Fleet Map is connected.</p>
+                  </div>
+                </section>
+                <section className="panel">
+                  <div className="panel-heading">
+                    <h3>Service & maintenance</h3>
+                    <Link to={`/service?vehicle=${encodeURIComponent(vehicle.id)}`}>
+                      View history
+                    </Link>
+                  </div>
+                  <p className="muted">
+                    Review upcoming work, reminders, and completed maintenance for this vehicle.
+                  </p>
+                  <Link
+                    className="secondary inline-action"
+                    to={`/service?vehicle=${encodeURIComponent(vehicle.id)}`}
+                  >
+                    Open service records
+                  </Link>
+                </section>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
 }
 const bundledPhotos: Record<string, string> = {
-  '2015 double bucket': 'double-2015.jpg', '2025 double bucket': 'double-2025.jpg', '2018 altec crane': 'crane-2018.jpg',
-  '2022 altec crane': 'crane-2022.jpg', '2016 flatbed': 'flatbed-2016.jpg', '2019 single bucket': 'single-2019.jpg',
-  '2023 single bucket': 'single-2023.jpg', 'big tex dump trailer': 'trailer-dump.jpg', 'large flatbed trailer': 'trailer-long.jpg',
-  'red trailer': 'trailer-red.jpg', 'white trailer': 'trailer-white.jpg', 'white trailer (2")': 'trailer-white.jpg',
+  "2015 double bucket": "double-2015.jpg",
+  "2025 double bucket": "double-2025.jpg",
+  "2018 altec crane": "crane-2018.jpg",
+  "2022 altec crane": "crane-2022.jpg",
+  "2016 flatbed": "flatbed-2016.jpg",
+  "2019 single bucket": "single-2019.jpg",
+  "2023 single bucket": "single-2023.jpg",
+  "big tex dump trailer": "trailer-dump.jpg",
+  "large flatbed trailer": "trailer-long.jpg",
+  "red trailer": "trailer-red.jpg",
+  "white trailer": "trailer-white.jpg",
+  'white trailer (2")': "trailer-white.jpg",
+};
+function VehiclePhoto({ vehicle, large = false }: { vehicle: Vehicle; large?: boolean }) {
+  const source =
+    vehicle.photoUrl ||
+    (bundledPhotos[vehicle.name.toLowerCase()]
+      ? `/sws-fleet/vehicles/${bundledPhotos[vehicle.name.toLowerCase()]}`
+      : "");
+  return source ? (
+    <img
+      className={`vehicle-photo${large ? " large" : ""}`}
+      src={source}
+      alt={`${vehicle.name} vehicle`}
+    />
+  ) : (
+    <span className={`vehicle-photo placeholder${large ? " large" : ""}`} aria-hidden="true">
+      {vehicle.name?.slice(0, 1) || "+"}
+    </span>
+  );
 }
-function VehiclePhoto({ vehicle, large = false }: { vehicle: Vehicle; large?: boolean }) { const source = vehicle.photoUrl || (bundledPhotos[vehicle.name.toLowerCase()] ? `/sws-fleet/vehicles/${bundledPhotos[vehicle.name.toLowerCase()]}` : ''); return source ? <img className={`vehicle-photo${large ? ' large' : ''}`} src={source} alt={`${vehicle.name} vehicle`} /> : <span className={`vehicle-photo placeholder${large ? ' large' : ''}`} aria-hidden="true">{vehicle.name?.slice(0, 1) || '+'}</span> }
-function Status({ status }: { status: Vehicle['status'] }) { return <span className="vehicle-status" data-status={status}><i aria-hidden="true" />{status}</span> }
-function emptyVehicle(): Vehicle { return { id: 'new', name: '', year: new Date().getFullYear(), make: '', model: '', vin: '', status: 'Active', type: 'Truck', group: '', currentMeter: 0, meterUnit: 'mi', licensePlate: '', photoUrl: '', watchers: [], createdAt: '', updatedAt: '' } }
-async function fileToDataUrl(file: File): Promise<string> { return await new Promise((resolve, reject) => { const reader = new FileReader(); reader.onerror = () => reject(new Error('Could not read that image.')); reader.onload = () => resolve(String(reader.result)); reader.readAsDataURL(file) }) }
-function VehicleForm({ vehicle, onClose, onSave }: { vehicle: Vehicle; onClose: () => void; onSave: (input: VehicleInput) => Promise<void> }) {
-  const [form, setForm] = useState<VehicleInput>({ name: vehicle.name, year: vehicle.year, make: vehicle.make, model: vehicle.model, vin: vehicle.vin, status: vehicle.status, type: vehicle.type, group: vehicle.group, currentMeter: vehicle.currentMeter, meterUnit: vehicle.meterUnit, licensePlate: vehicle.licensePlate, photoUrl: vehicle.photoUrl }); const [errors, setErrors] = useState<Record<string, string>>({}); const [saving, setSaving] = useState(false); const [saveError, setSaveError] = useState(''); const update = (key: keyof VehicleInput, value: string) => setForm({ ...form, [key]: (key === 'year' || key === 'currentMeter') ? Number(value) : value } as VehicleInput)
-  return <form className="panel vehicle-form" onSubmit={async event => { event.preventDefault(); if (saving) return; const nextErrors = validateVehicle(form); setErrors(nextErrors); if (Object.keys(nextErrors).length) return; setSaving(true); setSaveError(''); try { await onSave(form) } catch (error) { setSaveError(error instanceof Error ? error.message : 'Could not save vehicle') } finally { setSaving(false) } }}><div className="form-heading"><div><p className="eyebrow">Vehicle record</p><h3>{vehicle.id === 'new' ? 'Add vehicle' : 'Edit vehicle'}</h3></div><button className="icon-close" type="button" onClick={onClose} aria-label="Close form">×</button></div><fieldset disabled={saving}><label className="photo-field"><span>Vehicle photo</span><div><VehiclePhoto vehicle={{ ...vehicle, photoUrl: form.photoUrl, name: form.name }} large /><label className="secondary upload-button">Choose photo<input type="file" accept="image/*" onChange={async event => { const file = event.target.files?.[0]; if (file) update('photoUrl', await fileToDataUrl(file)) }} /></label>{form.photoUrl && <button type="button" className="text-button" onClick={() => update('photoUrl', '')}>Remove</button>}</div></label><div className="form-grid">{[['name', 'Name'], ['year', 'Year'], ['make', 'Make'], ['model', 'Model'], ['vin', 'VIN'], ['group', 'Group'], ['currentMeter', 'Current Meter'], ['licensePlate', 'License Plate']].map(([key, label]) => <label key={key}>{label}<input type={key === 'year' || key === 'currentMeter' ? 'number' : 'text'} required={['name', 'year', 'make', 'model', 'currentMeter'].includes(key)} aria-label={label} value={String(form[key as keyof VehicleInput])} onChange={event => update(key as keyof VehicleInput, event.target.value)} />{errors[key] && <small className="error">{errors[key]}</small>}</label>)}<label>Status<select aria-label="Status" value={form.status} onChange={event => update('status', event.target.value)}>{vehicleStatuses.map(value => <option key={value}>{value}</option>)}</select></label><label>Type<select aria-label="Type" value={form.type} onChange={event => update('type', event.target.value)}>{vehicleTypes.map(value => <option key={value}>{value}</option>)}</select></label><label>Meter unit<select aria-label="Meter unit" value={form.meterUnit} onChange={event => update('meterUnit', event.target.value)}><option>mi</option><option>hr</option></select></label></div></fieldset>{saveError && <p role="alert" className="error form-error">{saveError}</p>}<div className="form-actions"><button className="secondary" type="button" disabled={saving} onClick={onClose}>Cancel</button><button className="primary" type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save vehicle'}</button></div></form>
+function Status({ status }: { status: Vehicle["status"] }) {
+  return (
+    <span className="vehicle-status" data-status={status}>
+      <i aria-hidden="true" />
+      {status}
+    </span>
+  );
 }
-function PlaceholderPage({ title }: { title: string }) { return <section className="empty-state"><div className="state-icon">◇</div><span className="coming-pill">Coming Soon</span><h2>{title} is on the way</h2><p>This workspace is reserved for the next SWS Fleet milestone.</p><Link className="secondary" to="/dashboard">Return to dashboard</Link></section> }
+function emptyVehicle(): Vehicle {
+  return {
+    id: "new",
+    name: "",
+    year: new Date().getFullYear(),
+    make: "",
+    model: "",
+    vin: "",
+    status: "Active",
+    type: "Truck",
+    group: "",
+    currentMeter: 0,
+    meterUnit: "mi",
+    licensePlate: "",
+    photoUrl: "",
+    watchers: [],
+    createdAt: "",
+    updatedAt: "",
+  };
+}
+async function fileToDataUrl(file: File): Promise<string> {
+  return await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("Could not read that image."));
+    reader.onload = () => resolve(String(reader.result));
+    reader.readAsDataURL(file);
+  });
+}
+function VehicleForm({
+  vehicle,
+  onClose,
+  onSave,
+}: {
+  vehicle: Vehicle;
+  onClose: () => void;
+  onSave: (input: VehicleInput) => Promise<void>;
+}) {
+  const [form, setForm] = useState<VehicleInput>({
+    name: vehicle.name,
+    year: vehicle.year,
+    make: vehicle.make,
+    model: vehicle.model,
+    vin: vehicle.vin,
+    status: vehicle.status,
+    type: vehicle.type,
+    group: vehicle.group,
+    currentMeter: vehicle.currentMeter,
+    meterUnit: vehicle.meterUnit,
+    licensePlate: vehicle.licensePlate,
+    photoUrl: vehicle.photoUrl,
+  });
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
+  const update = (key: keyof VehicleInput, value: string) =>
+    setForm({
+      ...form,
+      [key]: key === "year" || key === "currentMeter" ? Number(value) : value,
+    } as VehicleInput);
+  return (
+    <form
+      className="panel vehicle-form"
+      onSubmit={async (event) => {
+        event.preventDefault();
+        if (saving) return;
+        const nextErrors = validateVehicle(form);
+        setErrors(nextErrors);
+        if (Object.keys(nextErrors).length) return;
+        setSaving(true);
+        setSaveError("");
+        try {
+          await onSave(form);
+        } catch (error) {
+          setSaveError(error instanceof Error ? error.message : "Could not save vehicle");
+        } finally {
+          setSaving(false);
+        }
+      }}
+    >
+      <div className="form-heading">
+        <div>
+          <p className="eyebrow">Vehicle record</p>
+          <h3>{vehicle.id === "new" ? "Add vehicle" : "Edit vehicle"}</h3>
+        </div>
+        <button className="icon-close" type="button" onClick={onClose} aria-label="Close form">
+          ×
+        </button>
+      </div>
+      <fieldset disabled={saving}>
+        <label className="photo-field">
+          <span>Vehicle photo</span>
+          <div>
+            <VehiclePhoto
+              vehicle={{ ...vehicle, photoUrl: form.photoUrl, name: form.name }}
+              large
+            />
+            <label className="secondary upload-button">
+              Choose photo
+              <input
+                type="file"
+                accept="image/*"
+                onChange={async (event) => {
+                  const file = event.target.files?.[0];
+                  if (file) update("photoUrl", await fileToDataUrl(file));
+                }}
+              />
+            </label>
+            {form.photoUrl && (
+              <button type="button" className="text-button" onClick={() => update("photoUrl", "")}>
+                Remove
+              </button>
+            )}
+          </div>
+        </label>
+        <div className="form-grid">
+          {[
+            ["name", "Name"],
+            ["year", "Year"],
+            ["make", "Make"],
+            ["model", "Model"],
+            ["vin", "VIN"],
+            ["group", "Group"],
+            ["currentMeter", "Current Meter"],
+            ["licensePlate", "License Plate"],
+          ].map(([key, label]) => (
+            <label key={key}>
+              {label}
+              <input
+                type={key === "year" || key === "currentMeter" ? "number" : "text"}
+                required={["name", "year", "make", "model", "currentMeter"].includes(key)}
+                aria-label={label}
+                value={String(form[key as keyof VehicleInput])}
+                onChange={(event) => update(key as keyof VehicleInput, event.target.value)}
+              />
+              {errors[key] && <small className="error">{errors[key]}</small>}
+            </label>
+          ))}
+          <label>
+            Status
+            <select
+              aria-label="Status"
+              value={form.status}
+              onChange={(event) => update("status", event.target.value)}
+            >
+              {vehicleStatuses.map((value) => (
+                <option key={value}>{value}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Type
+            <select
+              aria-label="Type"
+              value={form.type}
+              onChange={(event) => update("type", event.target.value)}
+            >
+              {vehicleTypes.map((value) => (
+                <option key={value}>{value}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Meter unit
+            <select
+              aria-label="Meter unit"
+              value={form.meterUnit}
+              onChange={(event) => update("meterUnit", event.target.value)}
+            >
+              <option>mi</option>
+              <option>hr</option>
+            </select>
+          </label>
+        </div>
+      </fieldset>
+      {saveError && (
+        <p role="alert" className="error form-error">
+          {saveError}
+        </p>
+      )}
+      <div className="form-actions">
+        <button className="secondary" type="button" disabled={saving} onClick={onClose}>
+          Cancel
+        </button>
+        <button className="primary" type="submit" disabled={saving}>
+          {saving ? "Saving…" : "Save vehicle"}
+        </button>
+      </div>
+    </form>
+  );
+}
+function PlaceholderPage({ title }: { title: string }) {
+  return (
+    <section className="empty-state">
+      <div className="state-icon">◇</div>
+      <span className="coming-pill">Coming Soon</span>
+      <h2>{title} is on the way</h2>
+      <p>This workspace is reserved for the next SWS Fleet milestone.</p>
+      <Link className="secondary" to="/dashboard">
+        Return to dashboard
+      </Link>
+    </section>
+  );
+}
