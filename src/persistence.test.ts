@@ -3,7 +3,7 @@ const { from, single, insert, update, eq } = vi.hoisted(() => {
   const single = vi.fn()
   const select = vi.fn(() => ({ single }))
   const eq = vi.fn(() => ({ select }))
-  return { single, eq, insert: vi.fn(() => ({ select })), update: vi.fn(() => ({ eq })), from: vi.fn() }
+  return { single, eq, insert: vi.fn((_row: unknown) => ({ select })), update: vi.fn(() => ({ eq })), from: vi.fn() }
 })
 vi.mock('./supabase', () => ({ supabase: { from } }))
 import { persistVehicle } from './persistence'
@@ -26,4 +26,8 @@ it('updates only the selected persisted vehicle', async () => {
 it('propagates rejected saves instead of claiming success', async () => {
   single.mockResolvedValue({ data: null, error: { message: 'Permission denied' } })
   await expect(persistVehicle({ ...sampleVehicles[0], id: 'new' })).rejects.toThrow('Permission denied')
+})
+it('reports a missing write confirmation', async () => {
+  single.mockResolvedValue({ data: null, error: null })
+  await expect(persistVehicle({ ...sampleVehicles[0], id: 'new' })).rejects.toThrow('confirmed')
 })
