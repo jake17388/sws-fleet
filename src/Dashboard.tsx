@@ -21,7 +21,7 @@ export function Dashboard() {
     return { record, vehicle, status: serviceStatus(record, vehicle?.meterUnit === record.meterUnit ? vehicle.currentMeter : -1) }
   }).sort((a, b) => ['Overdue', 'Due now', 'Due today', 'Due soon', 'Scheduled'].indexOf(a.status) - ['Overdue', 'Due now', 'Due today', 'Due soon', 'Scheduled'].indexOf(b.status))
   const cost = services.filter(s => s.completedDate?.startsWith(today().slice(0, 7))).reduce((sum, s) => sum + (s.cost ?? 0), 0)
-  return <div className="content"><section className="welcome"><div><p className="eyebrow">Fleet overview</p><h2>Good morning, Jordan</h2><p>Here’s what needs your attention today.</p></div><Link className="primary" to="/service">＋ Add service</Link></section>
+  return <div className="content"><section className="welcome"><div><p className="eyebrow">Fleet overview</p><h2>Good morning, Jake</h2><p>Here’s what needs your attention today.</p></div><Link className="primary" to="/service">＋ Add service</Link></section>
     {loading ? <p role="status">Loading fleet overview…</p> : error ? <p role="alert" className="error">Could not load overview: {error}. <Link to="/service">Open service to retry.</Link></p> : <>
       <section className="stat-grid">{[[String(vehicles.length), 'Vehicles'], [String(upcoming.filter(s => s.status !== 'Scheduled').length), 'Due or due within 7 days'], [String(services.filter(s => s.completedDate).length), 'Completed services'], [new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(cost), 'Service costs this month']].map(([v, l]) => <article className="stat" key={l}><strong>{v}</strong><span>{l}</span></article>)}</section>
     </>}
