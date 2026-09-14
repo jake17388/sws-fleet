@@ -20,6 +20,7 @@ describe('SWS Fleet shell', () => {
     expect(serviceLink.querySelector('img')).toHaveAttribute('src', '/sws-fleet/wrench.png')
     expect(vehicleLink.querySelector('.nav-label')).toHaveTextContent('Vehicles')
     expect(serviceLink.querySelector('.nav-label')).toHaveTextContent('Service')
+    expect(vehicleLink).toHaveStyle({ display: 'grid', gridTemplateColumns: '24px minmax(0, 1fr) auto' })
   })
   it('lets the user select and persist a dark appearance', () => {
     render(<App />)
