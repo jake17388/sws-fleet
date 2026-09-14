@@ -12,6 +12,15 @@ describe('SWS Fleet shell', () => {
     expect(screen.getByText('Fleet Management')).toBeInTheDocument()
     expect(screen.getAllByText('Coming Soon')).toHaveLength(4)
   })
+  it('uses the supplied vehicle and service icons with spaced sidebar labels', () => {
+    render(<App />)
+    const vehicleLink = screen.getAllByRole('link', { name: 'Vehicles' })[0]
+    const serviceLink = screen.getAllByRole('link', { name: 'Service' })[0]
+    expect(vehicleLink.querySelector('img')).toHaveAttribute('src', '/sws-fleet/car.png')
+    expect(serviceLink.querySelector('img')).toHaveAttribute('src', '/sws-fleet/wrench.png')
+    expect(vehicleLink.querySelector('.nav-label')).toHaveTextContent('Vehicles')
+    expect(serviceLink.querySelector('.nav-label')).toHaveTextContent('Service')
+  })
   it('lets the user select and persist a dark appearance', () => {
     render(<App />)
     fireEvent.click(screen.getByRole('link', { name: 'Settings' }))
