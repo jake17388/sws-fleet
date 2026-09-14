@@ -1,18 +1,20 @@
-nav a {
-  display: block !important;
-  border: 0;
-  background: none;
-  color: #a7bdca !important;
+.sidebar nav a {
+  display: block;
+  color: #c0cee3;
   text-align: left;
-  padding: 12px;
-  border-radius: 8px;
-  font-size: 14px;
-  cursor: pointer;
-  text-decoration: none !important;
+  padding: 11px 12px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  font-size: 13px;
+  text-decoration: none;
 }
-
-nav a.active,
-nav a:hover {
-  background: #173650 !important;
-  color: white !important;
+.sidebar nav a:hover {
+  background: #ffffff0d;
+  color: white;
+}
+.sidebar nav a.active {
+  background: linear-gradient(110deg, #2455a466, #2455a422);
+  border-color: #5679b04d;
+  box-shadow: inset 3px 0 #f5a31c;
+  color: white;
 }
