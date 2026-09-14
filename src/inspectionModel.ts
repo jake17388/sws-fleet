@@ -117,13 +117,13 @@ export async function loadInspections(): Promise<Inspection[]> {
 }
 export async function saveInspection(inspection: Inspection): Promise<Inspection> {
   if (!supabase) { const list = await loadInspections(); const saved = { ...inspection, id: inspection.id || crypto.randomUUID(), updatedAt: now() }; localStorage.setItem(inspectionsKey, JSON.stringify(list.some(i => i.id === saved.id) ? list.map(i => i.id === saved.id ? saved : i) : [saved, ...list])); return saved }
-  const row = { template_id: inspection.templateId, vehicle_id: inspection.vehicleId, status: inspection.status, notes: inspection.notes, started_at: inspection.startedAt, submitted_at: inspection.submittedAt }
-  const request = inspection.id ? supabase.from('inspections').update(row).eq('id', inspection.id) : supabase.from('inspections').insert(row)
-  const { data, error } = await request.select('*').single(); if (error) throw new Error(error.message); if (!data) throw new Error('Inspection save could not be confirmed.')
-  const inspectionId = String(data.id)
+  const finalStatus = inspection.status; const baseRow = { template_id: inspection.templateId, vehicle_id: inspection.vehicleId, status: 'Draft', notes: inspection.notes, started_at: inspection.startedAt, submitted_at: null }
+  let inspectionId = inspection.id; let data: Record<string, unknown> | null = null
+  if (!inspectionId) { const created = await supabase.from('inspections').insert(baseRow).select('*').single(); if (created.error) throw new Error(created.error.message); if (!created.data) throw new Error('Inspection save could not be confirmed.'); data = created.data; inspectionId = String(created.data.id) }
   if (inspection.id) { const deleted = await supabase.from('inspection_responses').delete().eq('inspection_id', inspectionId); if (deleted.error) throw new Error(deleted.error.message) }
   if (inspection.responses.length) { const saved = await supabase.from('inspection_responses').insert(inspection.responses.map(response => ({ inspection_id: inspectionId, template_item_id: response.itemId, value_text: typeof response.value === 'string' ? response.value : null, value_number: typeof response.value === 'number' ? response.value : null, notes: response.notes, photo_paths: response.photoPaths }))); if (saved.error) throw new Error(saved.error.message) }
-  return { ...inspection, id: inspectionId, updatedAt: String(data.updated_at), startedAt: String(data.started_at) }
+  const updated = await supabase.from('inspections').update({ ...baseRow, status: finalStatus, submitted_at: inspection.submittedAt }).eq('id', inspectionId).select('*').single(); if (updated.error) throw new Error(updated.error.message); data = updated.data
+  if (!data) throw new Error('Inspection save could not be confirmed.'); return { ...inspection, id: inspectionId, updatedAt: String(data.updated_at), startedAt: String(data.started_at) }
 }
 export async function uploadInspectionPhoto(inspectionId: string, itemId: string, file: File) {
   if (!supabase) return URL.createObjectURL(file)
