@@ -6,6 +6,21 @@ import { App } from './App'
 afterEach(() => { cleanup(); window.history.replaceState({}, '', '/'); localStorage.clear() })
 
 describe('SWS Fleet shell', () => {
+  it('uses the Summit West Signs fleet brand and labels unfinished destinations', () => {
+    render(<App />)
+    expect(screen.getByText('Summit West Signs')).toBeInTheDocument()
+    expect(screen.getByText('Fleet Management')).toBeInTheDocument()
+    expect(screen.getAllByText('Coming Soon')).toHaveLength(4)
+  })
+  it('lets the user select and persist a dark appearance', () => {
+    render(<App />)
+    fireEvent.click(screen.getByRole('link', { name: 'Settings' }))
+    fireEvent.click(screen.getByRole('button', { name: /Preferences/ }))
+    fireEvent.click(screen.getByRole('radio', { name: 'Dark' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save preferences' }))
+    expect(document.documentElement).toHaveAttribute('data-theme', 'dark')
+    expect(localStorage.getItem('sws-fleet.theme.v1')).toBe('dark')
+  })
   it('shows the dashboard overview', () => { render(<App />); expect(screen.getByText('Good morning, Jake')).toBeInTheDocument(); expect(screen.getByText('Upcoming maintenance')).toBeInTheDocument() })
   it('opens settings from navigation', () => {
     render(<App />)
@@ -28,9 +43,17 @@ describe('SWS Fleet shell', () => {
     render(<App />)
     fireEvent.click(screen.getAllByRole('link', { name: 'Vehicles' })[0])
     fireEvent.click(screen.getAllByRole('button', { name: 'Open 2015 Double Bucket' })[0])
+    expect(window.location.pathname).toBe('/vehicles/vehicle-1')
     expect(screen.getByRole('heading', { name: '2015 Double Bucket' })).toBeInTheDocument()
     expect(screen.getAllByText('Vehicle details').length).toBeGreaterThan(0)
     fireEvent.click(screen.getByRole('button', { name: 'Edit vehicle' }))
     expect(screen.getByLabelText('License Plate')).toHaveValue('CJ43300')
+  })
+  it('opens vehicle actions from a three dot menu', () => {
+    render(<App />)
+    fireEvent.click(screen.getAllByRole('link', { name: 'Vehicles' })[0])
+    fireEvent.click(screen.getByRole('button', { name: 'Actions for 2015 Double Bucket' }))
+    expect(screen.getByRole('menuitem', { name: 'View vehicle' })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Edit vehicle' })).toBeInTheDocument()
   })
 })
