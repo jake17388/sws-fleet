@@ -22,7 +22,7 @@ it('shows the entire fleet in one table and filters vehicles beyond the former p
   fireEvent.change(screen.getByLabelText('Filter by status'), { target: { value: 'In maintenance' } })
   expect(within(screen.getByRole('table')).getAllByRole('row')).toHaveLength(2)
   fireEvent.click(screen.getByRole('button', { name: 'Open Truck 12' }))
-  expect(screen.getByRole('link', { name: 'View service and maintenance' })).toHaveAttribute('href', '/service?vehicle=truck-11')
+  expect(screen.getByRole('link', { name: 'Open service records' })).toHaveAttribute('href', '/service?vehicle=truck-11')
 })
 
 it('explains an empty search and lets the user clear filters', async () => {
@@ -30,6 +30,6 @@ it('explains an empty search and lets the user clear filters', async () => {
   await screen.findByRole('button', { name: 'Open Truck 01' })
   fireEvent.change(screen.getByLabelText('Search vehicles'), { target: { value: 'missing' } })
   expect(screen.getByText('No vehicles match your filters.')).toBeInTheDocument()
-  fireEvent.click(screen.getByRole('button', { name: 'Clear filters' }))
+  fireEvent.click(screen.getAllByRole('button', { name: 'Clear filters' })[0])
   expect(screen.getByRole('button', { name: 'Open Truck 12' })).toBeInTheDocument()
 })

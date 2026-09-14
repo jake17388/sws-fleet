@@ -17,6 +17,7 @@ export type Vehicle = {
   currentMeter: number
   meterUnit: 'mi' | 'hr'
   licensePlate: string
+  photoUrl: string
   watchers: string[]
   createdAt: string
   updatedAt: string
@@ -38,11 +39,11 @@ export const validateVehicle = (input: Partial<VehicleInput>) => {
 }
 
 export const sampleVehicles: Vehicle[] = [
-  ['2015 Double Bucket',2015,'Ford','F-550 Super Duty','1FDUF5GT1FEB72705','Active','Truck','Bucket Trucks',181583,'mi','CJ43300'],
-  ['2016 Flatbed',2016,'Ford','F-450 Super Duty','1FD0W4GT9GED42125','Active','Truck','',149281,'mi','CK47519'],
-  ['2018 Altec Crane',2018,'Ford','F-750 Super Duty','1FDXF7DEXJDF03858','Active','Truck','Cranes',101485,'mi','CMO6222'],
-  ['Big Tex Dump Trailer',2021,'Big Tex Trailers','—','', 'Active','Trailer','',12345,'mi','HMA 02D'],
-].map(([name,year,make,model,vin,status,type,group,currentMeter,meterUnit,licensePlate], index) => ({ id: `vehicle-${index + 1}`, name, year, make, model, vin, status, type, group, currentMeter, meterUnit, licensePlate, watchers: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() } as Vehicle))
+  ['2015 Double Bucket',2015,'Ford','F-550 Super Duty','1FDUF5GT1FEB72705','Active','Truck','Bucket Trucks',181583,'mi','CJ43300','/sws-fleet/vehicles/double-2015.jpg'],
+  ['2016 Flatbed',2016,'Ford','F-450 Super Duty','1FD0W4GT9GED42125','Active','Truck','',149281,'mi','CK47519','/sws-fleet/vehicles/flatbed-2016.jpg'],
+  ['2018 Altec Crane',2018,'Ford','F-750 Super Duty','1FDXF7DEXJDF03858','Active','Truck','Cranes',101485,'mi','CMO6222','/sws-fleet/vehicles/crane-2018.jpg'],
+  ['Big Tex Dump Trailer',2021,'Big Tex Trailers','—','', 'Active','Trailer','',12345,'mi','HMA 02D','/sws-fleet/vehicles/trailer-dump.jpg'],
+].map(([name,year,make,model,vin,status,type,group,currentMeter,meterUnit,licensePlate,photoUrl], index) => ({ id: `vehicle-${index + 1}`, name, year, make, model, vin, status, type, group, currentMeter, meterUnit, licensePlate, photoUrl, watchers: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() } as Vehicle))
 
 const KEY = 'sws-fleet.vehicles.v1'
 export const loadVehicles = (): Vehicle[] => {
@@ -57,13 +58,14 @@ export const fromDatabaseVehicle = (row: Record<string, unknown>): Vehicle => ({
   id: String(row.id), name: String(row.name), year: Number(row.year), make: String(row.make ?? ''), model: String(row.model ?? ''),
   vin: String(row.vin ?? ''), status: row.status as VehicleStatus, type: row.type as VehicleType, group: String(row.vehicle_group ?? ''),
   currentMeter: Number(row.current_meter ?? 0), meterUnit: row.meter_unit as 'mi' | 'hr', licensePlate: String(row.license_plate ?? ''),
+  photoUrl: String(row.photo_url ?? ''),
   watchers: [], createdAt: String(row.created_at ?? ''), updatedAt: String(row.updated_at ?? '')
 })
 
 export const toDatabaseVehicle = (vehicle: Vehicle) => ({
   name: vehicle.name, year: vehicle.year || null, make: vehicle.make || null, model: vehicle.model || null, vin: vehicle.vin || null,
   status: vehicle.status, type: vehicle.type, vehicle_group: vehicle.group || null, current_meter: vehicle.currentMeter,
-  meter_unit: vehicle.meterUnit, license_plate: vehicle.licensePlate || null
+  meter_unit: vehicle.meterUnit, license_plate: vehicle.licensePlate || null, photo_url: vehicle.photoUrl || null
 })
 
 export const isDatabaseId = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)

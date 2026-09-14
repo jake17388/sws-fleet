@@ -2,14 +2,22 @@ import { useEffect, useState } from 'react'
 import { supabase } from './supabase'
 
 const preferencesKey = 'sws-fleet.compact-tables.v1'
+const themeKey = 'sws-fleet.theme.v1'
+export type Theme = 'light' | 'dark'
+export function loadTheme(): Theme {
+  try { return localStorage.getItem(themeKey) === 'dark' ? 'dark' : 'light' }
+  catch { return 'light' }
+}
 export function loadCompactTables(): boolean {
   try { return localStorage.getItem(preferencesKey) === 'true' }
   catch { return false }
 }
 
-export function SettingsPage({ compact, onCompactChange }: {
+export function SettingsPage({ compact, onCompactChange, theme = loadTheme(), onThemeChange = next => { document.documentElement.dataset.theme = next } }: {
   compact: boolean
   onCompactChange: (compact: boolean) => void
+  theme?: Theme
+  onThemeChange?: (theme: Theme) => void
 }) {
   const [section, setSection] = useState('Account')
   const [email, setEmail] = useState('')
@@ -21,6 +29,7 @@ export function SettingsPage({ compact, onCompactChange }: {
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const [draftCompact, setDraftCompact] = useState(compact)
+  const [draftTheme, setDraftTheme] = useState<Theme>(theme)
 
   useEffect(() => {
     if (!supabase) return
@@ -76,10 +85,12 @@ export function SettingsPage({ compact, onCompactChange }: {
           event.preventDefault(); setError(''); setMessage('')
           try {
             localStorage.setItem(preferencesKey, String(draftCompact))
-            onCompactChange(draftCompact); setMessage('Preferences saved for this browser.')
+            localStorage.setItem(themeKey, draftTheme)
+            onCompactChange(draftCompact); onThemeChange(draftTheme); setMessage('Preferences saved for this browser.')
           } catch { setError('Could not save preferences. Check that browser storage is available and try again.') }
         }}>
           <h3>Display preferences</h3><p>Preferences are saved on this browser and apply to anyone using it.</p>
+          <fieldset className="theme-picker"><legend>Appearance</legend>{(['light', 'dark'] as const).map(value => <label key={value}><input aria-label={value === 'light' ? 'Light' : 'Dark'} type="radio" name="theme" value={value} checked={draftTheme === value} onChange={() => setDraftTheme(value)}/><span><strong>{value === 'light' ? 'Light' : 'Dark'}</strong><small>{value === 'light' ? 'Bright surfaces for daylight and office use.' : 'Lower-glare surfaces for evenings and dark environments.'}</small></span></label>)}</fieldset>
           <label className="settings-checkbox"><input type="checkbox" checked={draftCompact} onChange={event => setDraftCompact(event.target.checked)}/><span><strong>Compact vehicle table</strong><small>Reduce row spacing to show more vehicles at once.</small></span></label>
           <button className="primary">Save preferences</button>
         </form>}
