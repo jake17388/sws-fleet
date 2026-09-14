@@ -10,7 +10,7 @@ describe('SWS Fleet shell', () => {
     render(<App />)
     expect(screen.getByText('Summit West Signs')).toBeInTheDocument()
     expect(screen.getByText('Fleet Management')).toBeInTheDocument()
-    expect(screen.getAllByText('Coming Soon')).toHaveLength(4)
+    expect(screen.getAllByText('Coming Soon')).toHaveLength(3)
   })
   it('uses the supplied vehicle and service icons with spaced sidebar labels', () => {
     render(<App />)
@@ -41,6 +41,12 @@ describe('SWS Fleet shell', () => {
     expect(screen.getByRole('heading', { name: 'User management' })).toBeInTheDocument()
   })
   it('switches workspace from navigation', () => { render(<App />); fireEvent.click(screen.getAllByRole('link', { name: 'Vehicles' })[0]); expect(screen.getAllByRole('heading', { name: 'Vehicles' }).length).toBeGreaterThan(0) })
+  it('opens the functional inspections workspace from navigation', async () => {
+    render(<App />)
+    fireEvent.click(screen.getAllByRole('link', { name: 'Inspections' })[0])
+    expect(await screen.findByRole('heading', { name: 'Inspections' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Start inspection/ })).toBeInTheDocument()
+  })
   it('shows vehicle fields and lets an administrator watch a vehicle', () => {
     render(<App />)
     fireEvent.click(screen.getAllByRole('link', { name: 'Vehicles' })[0])
