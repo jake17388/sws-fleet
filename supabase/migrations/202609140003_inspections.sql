@@ -88,7 +88,8 @@ alter table public.inspections enable row level security;
 alter table public.inspection_responses enable row level security;
 alter table public.inspection_issues enable row level security;
 grant select, insert, update, delete on public.inspection_templates, public.inspection_template_items to authenticated;
-grant select, insert, update on public.inspections, public.inspection_responses, public.inspection_issues to authenticated;
+grant select, insert, update on public.inspections, public.inspection_issues to authenticated;
+grant select, insert, update, delete on public.inspection_responses to authenticated;
 
 create policy inspection_templates_read on public.inspection_templates for select to authenticated using (true);
 create policy inspection_templates_manage on public.inspection_templates for all to authenticated using (true) with check (true);
@@ -100,6 +101,7 @@ create policy inspections_update_draft on public.inspections for update to authe
 create policy inspection_responses_read on public.inspection_responses for select to authenticated using (exists (select 1 from public.inspections i where i.id = inspection_id));
 create policy inspection_responses_create on public.inspection_responses for insert to authenticated with check (exists (select 1 from public.inspections i where i.id = inspection_id and i.inspector_id = auth.uid() and i.status = 'Draft'));
 create policy inspection_responses_update on public.inspection_responses for update to authenticated using (exists (select 1 from public.inspections i where i.id = inspection_id and i.inspector_id = auth.uid() and i.status = 'Draft'));
+create policy inspection_responses_delete on public.inspection_responses for delete to authenticated using (exists (select 1 from public.inspections i where i.id = inspection_id and i.inspector_id = auth.uid() and i.status = 'Draft'));
 create policy inspection_issues_read on public.inspection_issues for select to authenticated using (exists (select 1 from public.vehicles v where v.id = vehicle_id));
 create policy inspection_issues_create on public.inspection_issues for insert to authenticated with check (created_by = auth.uid() and exists (select 1 from public.inspections i where i.id = inspection_id and i.vehicle_id = vehicle_id));
 create policy inspection_issues_update on public.inspection_issues for update to authenticated using (exists (select 1 from public.vehicles v where v.id = vehicle_id)) with check (exists (select 1 from public.vehicles v where v.id = vehicle_id));
