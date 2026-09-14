@@ -1,0 +1,129 @@
+.inspection-input,
+.item-notes textarea,
+.runner-notes textarea,
+.template-editor input,
+.template-editor select,
+.template-editor textarea {
+  width: 100%;
+  min-height: 42px;
+  padding: 10px 11px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface-raised);
+}
+.item-notes,
+.runner-notes {
+  display: grid;
+  gap: 6px;
+  margin-top: 16px;
+  color: var(--text-2);
+  font-size: 11px;
+  font-weight: 700;
+}
+.photo-response {
+  min-height: 62px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  border: 1px dashed var(--border-strong);
+  border-radius: 10px;
+  background: var(--surface-sunken);
+  color: var(--blue);
+  font-size: 12px;
+  font-weight: 750;
+  cursor: pointer;
+}
+.photo-response input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+.failure-box {
+  margin-top: 14px;
+  padding: 14px;
+  border-radius: 10px;
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+.failure-box p {
+  margin: 5px 0 10px;
+  font-size: 11px;
+  line-height: 1.45;
+}
+.runner-notes {
+  margin-top: 13px;
+}
+.runner-actions {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+  margin-top: 13px;
+  padding: 13px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(16px);
+}
+:root[data-theme="dark"] .runner-actions {
+  background: rgba(23, 27, 35, 0.9);
+}
+.runner-error {
+  margin-bottom: 14px;
+  padding: 12px;
+  border: 1px solid rgba(189, 47, 53, 0.2);
+  border-radius: 9px;
+  background: var(--danger-bg);
+}
+.template-editor {
+  display: grid;
+  gap: 20px;
+}
+.template-editor .form-grid {
+  padding: 0;
+}
+.span-two {
+  grid-column: 1/-1;
+}
+.template-editor label,
+.template-items label {
+  display: grid;
+  gap: 6px;
+  color: var(--text-2);
+  font-size: 11px;
+  font-weight: 700;
+}
+.template-items-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.template-items {
+  display: grid;
+  gap: 9px;
+}
+.template-items article {
+  display: grid;
+  grid-template-columns: 27px minmax(180px, 2fr) minmax(145px, 1fr) auto minmax(180px, 2fr) 34px;
+  align-items: end;
+  gap: 9px;
+  padding: 13px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--surface-sunken);
+}
+.required-check {
+  display: flex !important;
+  align-items: center;
+  min-height: 42px;
+}
+.required-check input {
+  width: 17px;
+  min-height: 17px;
+}
+.template-editor .form-actions {
+  margin: 0 -22px -22px;
+}

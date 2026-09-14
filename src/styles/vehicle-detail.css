@@ -1,0 +1,95 @@
+.vehicle-hero {
+  display: flex;
+  align-items: center;
+  gap: 17px;
+  padding: 4px 0 22px;
+}
+.vehicle-hero h2 {
+  font-size: 28px;
+}
+.vehicle-hero p:last-child {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 7px;
+  color: var(--text-2);
+  font-size: 13px;
+}
+.hero-actions {
+  display: flex;
+  gap: 9px;
+  margin-left: auto;
+}
+.detail-tabs {
+  display: flex;
+  gap: 4px;
+  margin: 0 calc(clamp(18px, 3vw, 38px) * -1) 20px;
+  padding: 0 clamp(18px, 3vw, 38px);
+  overflow: auto;
+  border-bottom: 1px solid var(--border);
+}
+.detail-tabs a,
+.detail-tabs span {
+  padding: 12px 14px;
+  color: var(--text-2);
+  font-size: 12px;
+  font-weight: 650;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.detail-tabs .active {
+  color: var(--blue);
+  box-shadow: inset 0 -3px var(--gold);
+}
+.vehicle-detail-grid {
+  display: grid;
+  grid-template-columns: minmax(360px, 0.85fr) 1.15fr;
+  gap: 18px;
+}
+.detail-fields dl {
+  margin: 0;
+}
+.detail-fields dl > div {
+  display: grid;
+  grid-template-columns: 145px 1fr;
+  gap: 16px;
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+}
+.detail-fields dt {
+  color: var(--text-2);
+}
+.detail-fields dd {
+  margin: 0;
+  font-weight: 550;
+}
+.detail-stack {
+  display: grid;
+  align-content: start;
+  gap: 18px;
+}
+.map-placeholder {
+  height: 200px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 7px;
+  border-radius: 11px;
+  background:
+    radial-gradient(circle at 70% 30%, rgba(36, 85, 164, 0.14), transparent 9rem),
+    linear-gradient(135deg, var(--surface-sunken), var(--canvas));
+  color: var(--text-2);
+  text-align: center;
+}
+.map-placeholder span {
+  font-size: 30px;
+  color: var(--blue);
+}
+.map-placeholder p {
+  max-width: 310px;
+  font-size: 12px;
+}
+.inline-action {
+  margin-top: 17px;
+}

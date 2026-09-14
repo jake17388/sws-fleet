@@ -1,0 +1,28 @@
+@media (max-width: 900px) {
+  .sidebar {
+    width: 218px;
+  }
+  .main-shell {
+    width: calc(100% - 218px);
+    margin-left: 218px;
+  }
+  .brand strong {
+    font-size: 13px;
+  }
+  .dashboard-grid,
+  .vehicle-detail-grid {
+    grid-template-columns: 1fr;
+  }
+  .stat-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .template-items article {
+    grid-template-columns: 27px 1fr 1fr;
+  }
+  .item-instructions {
+    grid-column: 2/-1;
+  }
+  .template-items article > .icon-close {
+    grid-column: -2/-1;
+  }
+}

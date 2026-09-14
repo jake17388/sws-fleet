@@ -1,0 +1,89 @@
+.vehicle-form,
+.detail-form {
+  max-width: 850px;
+}
+.vehicle-form {
+  padding: 0;
+  overflow: hidden;
+}
+.form-heading {
+  display: flex;
+  justify-content: space-between;
+  padding: 20px 22px;
+  border-bottom: 1px solid var(--border);
+}
+.icon-close {
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface);
+  cursor: pointer;
+  font-size: 20px;
+}
+.vehicle-form fieldset,
+.detail-form fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 22px;
+  border: 0;
+}
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.form-grid label,
+.detail-form label,
+.login-form label {
+  display: grid;
+  gap: 6px;
+  color: var(--text-2);
+  font-size: 11px;
+  font-weight: 700;
+}
+.photo-field {
+  display: grid;
+  gap: 9px;
+  margin-bottom: 22px;
+  color: var(--text-2);
+  font-size: 11px;
+  font-weight: 700;
+}
+.photo-field > div {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.upload-button {
+  position: relative;
+  overflow: hidden;
+}
+.upload-button input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+  padding: 16px 22px;
+  border-top: 1px solid var(--border);
+  background: var(--surface-sunken);
+}
+.form-error {
+  margin: 0 22px 10px;
+}
+.error {
+  color: var(--danger);
+}
+.success {
+  margin-bottom: 17px;
+  padding: 12px 14px;
+  border: 1px solid rgba(22, 131, 79, 0.2);
+  border-radius: 10px;
+  background: var(--success-bg);
+  color: var(--success);
+}

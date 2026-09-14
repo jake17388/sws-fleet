@@ -1,0 +1,48 @@
+.service-list {
+  display: grid;
+  gap: 12px;
+}
+.service-card {
+  position: relative;
+  padding: 17px 18px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--blue);
+  border-radius: 11px;
+  background: var(--surface-raised);
+}
+.service-card p {
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--text-2);
+}
+.service-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 13px;
+}
+.service-notes {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.detail-form {
+  display: grid;
+  gap: 14px;
+}
+.detail-form > h3,
+.detail-form > button,
+.detail-form > p {
+  margin-inline: 22px;
+}
+.detail-form > h3 {
+  margin-top: 22px;
+}
+.detail-form > button {
+  width: max-content;
+}
+.detail-form > button:last-child {
+  margin-bottom: 22px;
+}
+.detail-form textarea {
+  resize: vertical;
+}

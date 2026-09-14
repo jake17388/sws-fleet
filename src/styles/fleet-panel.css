@@ -1,0 +1,51 @@
+.fleet-panel {
+  padding: 0;
+  overflow: visible;
+}
+.fleet-panel-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 17px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.fleet-panel-heading h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+}
+.fleet-panel-heading > span {
+  color: var(--text-3);
+  font-size: 11px;
+}
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 20px;
+}
+.toolbar input,
+.toolbar select,
+.vehicle-form input,
+.vehicle-form select,
+.detail-form input,
+.detail-form select,
+.detail-form textarea,
+.login-form input {
+  min-height: 39px;
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface-raised);
+}
+.toolbar input {
+  flex: 1;
+  min-width: 220px;
+  max-width: 440px;
+}
+.table-wrap {
+  overflow-x: auto;
+  border-top: 1px solid var(--border);
+}

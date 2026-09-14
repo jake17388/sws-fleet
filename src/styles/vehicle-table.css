@@ -1,0 +1,177 @@
+.vehicle-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  text-align: left;
+  font-size: 12px;
+}
+.vehicle-table th {
+  padding: 10px;
+  background: var(--surface-sunken);
+  color: var(--text-2);
+  font-size: 9px;
+  font-weight: 750;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.vehicle-table td {
+  height: 68px;
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  white-space: nowrap;
+}
+.vehicle-table tbody tr:hover td {
+  background: var(--surface-raised);
+}
+.vehicle-table th:first-child,
+.vehicle-table td:first-child {
+  padding-left: 20px;
+}
+.vehicle-table th:last-child,
+.vehicle-table td:last-child {
+  padding-right: 20px;
+}
+.vehicle-link {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+.vehicle-link strong {
+  display: block;
+}
+.vehicle-photo {
+  width: 48px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border-radius: 8px;
+  object-fit: cover;
+  background: var(--surface-sunken);
+  color: var(--text-3);
+  font-weight: 800;
+}
+.vehicle-photo.large {
+  width: 88px;
+  height: 76px;
+  border-radius: 12px;
+  font-size: 24px;
+}
+.vehicle-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 99px;
+  background: var(--success-bg);
+  color: var(--success);
+  font-size: 10px;
+  font-weight: 750;
+}
+.vehicle-status i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.vehicle-status[data-status="In maintenance"] {
+  background: var(--warning-bg);
+  color: var(--warning);
+}
+.vehicle-status[data-status="Inactive"],
+.vehicle-status[data-status="Retired"] {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+  color: var(--text-2);
+}
+.number {
+  font-variant-numeric: tabular-nums;
+}
+.watch-button {
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface-raised);
+}
+.actions-cell {
+  position: relative;
+}
+.kebab {
+  width: 35px;
+  height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  cursor: pointer;
+  letter-spacing: 1px;
+}
+.action-menu {
+  position: absolute;
+  right: 18px;
+  top: 49px;
+  z-index: 8;
+  width: 150px;
+  padding: 5px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-lg);
+}
+.action-menu button {
+  width: 100%;
+  padding: 9px;
+  border: 0;
+  border-radius: 7px;
+  background: none;
+  color: var(--text);
+  text-align: left;
+  font-size: 12px;
+  cursor: pointer;
+}
+.action-menu button:hover {
+  background: var(--surface-sunken);
+}
+.table-summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 13px 20px;
+  color: var(--text-2);
+  font-size: 11px;
+}
+.table-empty {
+  height: 270px !important;
+  text-align: center !important;
+  white-space: normal !important;
+}
+.table-empty strong {
+  display: block;
+  font-size: 15px;
+}
+.table-empty p {
+  margin: 7px 0 14px;
+  color: var(--text-2);
+}
+.state-icon {
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  margin: 0 auto 13px;
+  border-radius: 14px;
+  background: var(--surface-sunken);
+  color: var(--blue);
+  font-size: 21px;
+}

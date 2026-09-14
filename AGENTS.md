@@ -1,10 +1,12 @@
 # SWS Fleet
-- Deploy project changes to the main app on GitHub Pages automatically after relevant checks pass, unless the user specifies otherwise. Push to `main` and verify the GitHub Pages deployment succeeds before reporting it live.
-- React + TypeScript + Vite. `src/App.tsx` contains the shell, auth, and vehicle UI.
+- Deploy only when explicitly asked.
+- Read only the files named in the request; do not scan the repository.
+- React + TypeScript + Vite. App shell, navigation, and vehicle UI are split into focused files under `src/`.
 - `src/vehicleModel.ts` defines vehicle types and database mappings; `src/persistence.ts` handles vehicle reads/writes.
 - `src/Dashboard.tsx` derives overview totals from saved fleet and service records.
 - `src/ServicePage.tsx` and `src/serviceModel.ts` implement service scheduling and history.
 - `src/SettingsPage.tsx` contains account security, the team administration placeholder, and browser-local display preferences.
 - Supabase configuration is in `src/supabase.ts`; never commit `.env.local` or credentials.
-- Run focused tests with `npm test -- src/<file>.test.ts`; run `npm run build` for TypeScript and production validation.
+- Run only the single named test file while iterating, then run the full suite once before push. Use `npm test -- src/<file>.test.ts` for focused checks and `npm run build` for TypeScript and production validation.
+- Do not assert visual layout in jsdom tests.
 - Preserve database-returned IDs, await writes, and display failures before reporting success. Do not fall back to local data after a remote error.
