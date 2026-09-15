@@ -1,11 +1,66 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 const auth = vi.hoisted(() => ({ getUser: vi.fn(), updateUser: vi.fn() }));
+const team = vi.hoisted(() => ({
+  fetchTeamMembers: vi.fn(),
+  addTeamMember: vi.fn(),
+  sendTeamMemberInvite: vi.fn(),
+}));
 vi.mock("./supabase", () => ({ supabase: { auth } }));
+vi.mock("./teamPersistence", () => team);
 import { SettingsPage, loadCompactTables } from "./SettingsPage";
 beforeEach(() => {
   localStorage.clear();
   auth.getUser.mockResolvedValue({ data: { user: { email: "jake@example.com" } }, error: null });
+  team.fetchTeamMembers.mockResolvedValue([
+    {
+      id: "member-1",
+      userId: "user-1",
+      name: "Jake Banks",
+      email: "jake@example.com",
+      role: "administrator",
+      status: "active",
+      invitedAt: null,
+    },
+  ]);
+  team.addTeamMember.mockResolvedValue({
+    id: "member-2",
+    userId: null,
+    name: "Taylor Reed",
+    email: "taylor@example.com",
+    role: "member",
+    status: "pending",
+    invitedAt: null,
+  });
+  team.sendTeamMemberInvite.mockResolvedValue({ invitedAt: "2026-09-15T12:00:00Z" });
+});
+
+it("adds a pending user without emailing and sends an invite only on request", async () => {
+  render(<SettingsPage compact={false} onCompactChange={vi.fn()} />);
+  await screen.findByText("jake@example.com");
+  fireEvent.click(screen.getByRole("button", { name: /User management/ }));
+  await screen.findByText("Jake Banks");
+
+  fireEvent.click(screen.getByRole("button", { name: "Add user" }));
+  fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Taylor Reed" } });
+  fireEvent.change(screen.getByLabelText("Email"), {
+    target: { value: "taylor@example.com" },
+  });
+  fireEvent.change(screen.getByLabelText("Role"), { target: { value: "member" } });
+  fireEvent.click(screen.getByRole("button", { name: "Save user" }));
+
+  await screen.findByText("Taylor Reed");
+  expect(team.addTeamMember).toHaveBeenCalledWith({
+    name: "Taylor Reed",
+    email: "taylor@example.com",
+    role: "member",
+  });
+  expect(team.sendTeamMemberInvite).not.toHaveBeenCalled();
+  expect(screen.getByText("Pending invite")).toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole("button", { name: "Send invite to Taylor Reed" }));
+  await waitFor(() => expect(team.sendTeamMemberInvite).toHaveBeenCalledWith("member-2"));
+  expect(await screen.findByRole("status")).toHaveTextContent("Invite sent to Taylor Reed");
 });
 afterEach(() => {
   cleanup();
