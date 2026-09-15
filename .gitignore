@@ -142,3 +142,11 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# Local source assets and generated config output
+.DS_Store
+/Images/
+/vite.config.js
+/vite.config.d.ts
+/vitest.config.js
+/vitest.config.d.ts
