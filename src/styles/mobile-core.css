@@ -176,4 +176,15 @@
   .theme-picker {
     grid-template-columns: 1fr;
   }
+  .settings-user-fields {
+    grid-template-columns: 1fr;
+  }
+  .settings-person {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+  .settings-invite-actions {
+    width: 100%;
+    margin-left: 42px;
+  }
 }

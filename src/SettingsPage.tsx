@@ -1,5 +1,12 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./supabase";
+import {
+  addTeamMember,
+  fetchTeamMembers,
+  sendTeamMemberInvite,
+  type TeamMember,
+  type TeamRole,
+} from "./teamPersistence";
 
 const preferencesKey = "sws-fleet.compact-tables.v1";
 const themeKey = "sws-fleet.theme.v1";
@@ -43,6 +50,15 @@ export function SettingsPage({
   const [message, setMessage] = useState("");
   const [draftCompact, setDraftCompact] = useState(compact);
   const [draftTheme, setDraftTheme] = useState<Theme>(theme);
+  const [members, setMembers] = useState<TeamMember[]>([]);
+  const [teamLoading, setTeamLoading] = useState(!!supabase);
+  const [teamError, setTeamError] = useState("");
+  const [showAddUser, setShowAddUser] = useState(false);
+  const [newUserName, setNewUserName] = useState("");
+  const [newUserEmail, setNewUserEmail] = useState("");
+  const [newUserRole, setNewUserRole] = useState<TeamRole>("member");
+  const [teamSaving, setTeamSaving] = useState(false);
+  const [invitingId, setInvitingId] = useState("");
 
   useEffect(() => {
     if (!supabase) return;
@@ -64,6 +80,46 @@ export function SettingsPage({
       active = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!supabase) return;
+    let active = true;
+    fetchTeamMembers()
+      .then((loaded) => {
+        if (active) setMembers(loaded);
+      })
+      .catch((error) => {
+        if (active)
+          setTeamError(error instanceof Error ? error.message : "Could not load team members.");
+      })
+      .finally(() => {
+        if (active) setTeamLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const displayedMembers =
+    !supabase && members.length === 0
+      ? [
+          {
+            id: "local-administrator",
+            userId: null,
+            name: "Jake Banks",
+            email: "Local preview",
+            role: "administrator" as const,
+            status: "active" as const,
+            invitedAt: null,
+          },
+        ]
+      : members;
+  const isAdministrator =
+    !!supabase &&
+    email !== "" &&
+    displayedMembers.some(
+      (member) => member.role === "administrator" && member.email === email,
+    );
 
   return (
     <div className="content settings-content">
@@ -195,25 +251,167 @@ export function SettingsPage({
           )}
           {section === "User management" && (
             <section className="panel settings-panel">
-              <h3>User management</h3>
-              <p>Keep team membership and access settings together.</p>
-              <div className="settings-person">
-                <span className="avatar" aria-hidden="true">
-                  JB
-                </span>
+              <div className="settings-heading-row">
                 <div>
-                  <strong>Jake Banks</strong>
-                  <p>Configured workspace administrator</p>
+                  <h3>User management</h3>
+                  <p>Keep team membership and access settings together.</p>
                 </div>
-                <span className="count-badge">Administrator</span>
+                {isAdministrator && (
+                  <button className="primary" type="button" onClick={() => setShowAddUser(true)}>
+                    Add user
+                  </button>
+                )}
               </div>
-              <div className="settings-note">
-                <h4>Team administration</h4>
-                <p>
-                  Invitations, a full member directory, and role changes are not available yet. This
-                  section will house those controls once team administration is connected.
+              {showAddUser && (
+                <form
+                  className="detail-form settings-form settings-add-user"
+                  onSubmit={async (event) => {
+                    event.preventDefault();
+                    if (teamSaving) return;
+                    setTeamError("");
+                    setMessage("");
+                    setTeamSaving(true);
+                    try {
+                      const added = await addTeamMember({
+                        name: newUserName,
+                        email: newUserEmail,
+                        role: newUserRole,
+                      });
+                      setMembers((current) =>
+                        [...current, added].sort((a, b) => a.name.localeCompare(b.name)),
+                      );
+                      setNewUserName("");
+                      setNewUserEmail("");
+                      setNewUserRole("member");
+                      setShowAddUser(false);
+                      setMessage(`${added.name} added. No invitation has been sent.`);
+                    } catch (error) {
+                      setTeamError(error instanceof Error ? error.message : "Could not add user.");
+                    } finally {
+                      setTeamSaving(false);
+                    }
+                  }}
+                >
+                  <h4>Add user</h4>
+                  <div className="settings-user-fields">
+                    <label>
+                      Name
+                      <input
+                        required
+                        value={newUserName}
+                        onChange={(event) => setNewUserName(event.target.value)}
+                      />
+                    </label>
+                    <label>
+                      Email
+                      <input
+                        required
+                        type="email"
+                        value={newUserEmail}
+                        onChange={(event) => setNewUserEmail(event.target.value)}
+                      />
+                    </label>
+                    <label>
+                      Role
+                      <select
+                        value={newUserRole}
+                        onChange={(event) => setNewUserRole(event.target.value as TeamRole)}
+                      >
+                        <option value="member">Member</option>
+                        <option value="administrator">Administrator</option>
+                      </select>
+                    </label>
+                  </div>
+                  <p>
+                    Saving creates the user record only. You choose when to send their email
+                    invitation.
+                  </p>
+                  <div className="settings-form-actions">
+                    <button className="primary" disabled={teamSaving}>
+                      {teamSaving ? "Saving…" : "Save user"}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={teamSaving}
+                      onClick={() => setShowAddUser(false)}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              )}
+              {teamLoading ? (
+                <p role="status">Loading team members…</p>
+              ) : (
+                <div className="settings-member-list">
+                  {displayedMembers.map((member) => (
+                    <div className="settings-person" key={member.id}>
+                      <span className="avatar" aria-hidden="true">
+                        {member.name
+                          .split(/\s+/)
+                          .map((part) => part[0])
+                          .join("")
+                          .slice(0, 2)
+                          .toUpperCase()}
+                      </span>
+                      <div>
+                        <strong>{member.name}</strong>
+                        <p>{member.email}</p>
+                      </div>
+                      <span className="count-badge">
+                        {member.role === "administrator" ? "Administrator" : "Member"}
+                      </span>
+                      {member.status === "pending" && (
+                        <div className="settings-invite-actions">
+                          <span>Pending invite</span>
+                          {isAdministrator && (
+                            <button
+                              type="button"
+                              disabled={invitingId === member.id}
+                              aria-label={`Send invite to ${member.name}`}
+                              onClick={async () => {
+                                setTeamError("");
+                                setMessage("");
+                                setInvitingId(member.id);
+                                try {
+                                  const result = await sendTeamMemberInvite(member.id);
+                                  setMembers((current) =>
+                                    current.map((item) =>
+                                      item.id === member.id
+                                        ? { ...item, invitedAt: result.invitedAt }
+                                        : item,
+                                    ),
+                                  );
+                                  setMessage(`Invite sent to ${member.name}.`);
+                                } catch (error) {
+                                  setTeamError(
+                                    error instanceof Error
+                                      ? error.message
+                                      : "Could not send invitation.",
+                                  );
+                                } finally {
+                                  setInvitingId("");
+                                }
+                              }}
+                            >
+                              {invitingId === member.id
+                                ? "Sending…"
+                                : member.invitedAt
+                                  ? "Resend invite"
+                                  : "Send invite"}
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {teamError && (
+                <p className="error settings-feedback" role="alert">
+                  {teamError}
                 </p>
-              </div>
+              )}
             </section>
           )}
           {section === "Preferences" && (
